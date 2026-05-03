@@ -1,0 +1,80 @@
+:root {
+  color-scheme: light;
+
+  /* Vibrant light base */
+  --bg-deep: #f8faff;
+  --bg-elevated: #ffffff;
+  --bg-mist: rgba(255, 255, 255, 0.4);
+
+  /* Light Glassmorphism */
+  --surface-glass: rgba(255, 255, 255, 0.65);
+  --surface-glass-strong: rgba(255, 255, 255, 0.85);
+  --surface-glass-soft: rgba(255, 255, 255, 0.4);
+
+  /* Bright borders */
+  --line: rgba(255, 255, 255, 0.6);
+  --line-strong: rgba(255, 255, 255, 0.9);
+  --line-accent: rgba(255, 51, 102, 0.5);
+
+  /* Super vibrant aurora/mesh colors */
+  --aurora-1: #ff3366; /* Vibrant Pink */
+  --aurora-2: #00f2fe; /* Bright Cyan */
+  --aurora-3: #4facfe; /* Deep Blue */
+  --aurora-4: #fddb92; /* Bright Yellow/Orange */
+  --aurora-5: #d4fc79; /* Lime Green */
+
+  /* Text Colors (Dark for readability) */
+  --text-primary: #1e1e2f;
+  --text-secondary: #4a4a68;
+  --text-muted: #8b8b9e;
+  --text-subtle: #b1b1c6;
+
+  /* Status Colors */
+  --status-online: #10b981;
+  --status-degraded: #f59e0b;
+  --status-offline: #ef4444;
+  --status-unknown: rgba(0, 0, 0, 0.2);
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Border Radii */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-2xl: 36px;
+  --radius-full: 999px;
+
+  /* Blurs (Increase for better glass effect) */
+  --blur-sm: 8px;
+  --blur-md: 16px;
+  --blur-lg: 32px;
+  --blur-xl: 48px;
+
+  /* Easing */
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-spring: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+  --ease-spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Shadows for light glass */
+  --shadow-glass:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 12px 40px -4px rgba(31, 38, 135, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 1px 0 0 rgba(255, 255, 255, 0.5);
+
+  --shadow-glow-aurora:
+    0 0 60px rgba(255, 51, 102, 0.4),
+    0 0 90px rgba(0, 242, 254, 0.3);
+
+  --font-sans: 'Inter', -apple-system, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
