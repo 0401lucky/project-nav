@@ -172,7 +172,7 @@ function onBackdropClick(e: MouseEvent) {
 <template>
   <Transition name="modal">
     <div v-if="ui.screenshotOpen" class="backdrop" @click="onBackdropClick">
-      <div class="modal glass" role="dialog" aria-modal="true">
+      <div class="modal" role="dialog" aria-modal="true">
         <header class="head">
           <h2>截图导入</h2>
           <button class="close" aria-label="关闭" type="button" @click="close">
@@ -300,7 +300,7 @@ function onBackdropClick(e: MouseEvent) {
   z-index: 95;
   display: grid;
   place-items: center;
-  background: rgba(7, 9, 26, 0.7);
+  background: rgba(30, 25, 20, 0.45);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   padding: var(--space-4);
@@ -312,6 +312,11 @@ function onBackdropClick(e: MouseEvent) {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden;
 }
 
 .head {
@@ -331,7 +336,7 @@ function onBackdropClick(e: MouseEvent) {
   color: var(--text-muted);
   transition: all 0.2s var(--ease-out-soft);
 }
-.close:hover { color: var(--text-primary); background: var(--surface-glass); }
+.close:hover { color: var(--text-primary); background: var(--bg-sunken); }
 
 .body {
   padding: var(--space-2) var(--space-5);
@@ -341,25 +346,23 @@ function onBackdropClick(e: MouseEvent) {
 }
 
 .drop-zone {
-  border: 2px dashed var(--line-strong);
+  border: 1.5px dashed var(--line-strong);
   border-radius: var(--radius-lg);
   padding: var(--space-7) var(--space-4);
   display: grid;
   gap: var(--space-3);
   place-items: center;
   cursor: pointer;
-  transition: all 0.25s var(--ease-out-soft);
-  background: var(--surface-glass-soft);
+  transition: all 0.2s var(--ease-out-soft);
+  background: var(--bg-sunken);
 }
 .drop-zone:hover {
   border-color: var(--line-accent);
-  background: var(--surface-glass);
-  transform: translateY(-1px);
+  background: var(--bg-elevated);
 }
 
 .orb {
-  font-size: 40px;
-  filter: drop-shadow(0 0 16px rgba(192, 132, 252, 0.6));
+  font-size: 36px;
 }
 
 .hint { text-align: center; display: grid; gap: 4px; }
@@ -376,13 +379,13 @@ function onBackdropClick(e: MouseEvent) {
 
 .err {
   margin: 0;
-  color: #fca5a5;
+  color: #ef4444;
   font-size: 12.5px;
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(239, 68, 68, 0.06);
   padding: var(--space-3);
   border-radius: var(--radius-md);
   white-space: pre-wrap;
-  border: 1px solid rgba(248, 113, 113, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
 .analyzing {
@@ -445,13 +448,19 @@ function onBackdropClick(e: MouseEvent) {
 .input {
   height: 38px;
   padding: 0 var(--space-3);
-  background: var(--surface-glass);
+  background: var(--bg-sunken);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   font-size: 13px;
+  color: var(--text-primary);
   width: 100%;
+  transition: border-color 0.15s var(--ease-out-soft), box-shadow 0.15s var(--ease-out-soft);
 }
-.input:focus { border-color: var(--line-accent); }
+.input:focus {
+  border-color: var(--line-accent);
+  background: var(--bg-elevated);
+  box-shadow: 0 0 0 3px rgba(207, 69, 32, 0.12);
+}
 
 .color-row {
   display: flex;
@@ -464,9 +473,9 @@ function onBackdropClick(e: MouseEvent) {
   height: 22px;
   border-radius: 50%;
   border: 2px solid transparent;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
-.color.on { border-color: #fff; box-shadow: 0 0 8px currentColor; }
+.color.on { border-color: var(--text-primary); box-shadow: 0 0 0 2px rgba(255,255,255,0.6), 0 0 12px currentColor; }
 
 .rows {
   display: grid;
@@ -483,13 +492,13 @@ function onBackdropClick(e: MouseEvent) {
   align-items: center;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--surface-glass);
+  background: var(--bg-sunken);
   border: 1px solid var(--line);
-  transition: all 0.2s var(--ease-out-soft);
+  transition: all 0.15s var(--ease-out-soft);
   cursor: pointer;
 }
-.cand-row.off { opacity: 0.45; }
-.cand-row:hover { border-color: var(--line-strong); }
+.cand-row.off { opacity: 0.5; }
+.cand-row:hover { border-color: var(--line-strong); background: var(--bg-elevated); }
 
 .cand-row input[type="checkbox"] {
   width: 18px;
@@ -511,9 +520,11 @@ function onBackdropClick(e: MouseEvent) {
   font-weight: 500;
 }
 .cand-name:focus {
-  background: var(--surface-glass-strong);
+  background: var(--bg-elevated);
   padding: 2px 8px;
   border-radius: 4px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(207, 69, 32, 0.18);
 }
 .cand-url {
   font-family: var(--font-mono);

@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端规范索引；重构后需按新结构回填"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件拆分与 props 约定"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Pinia store 约定：auth / data / settings 三个 store"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "复用旧 scraper.ts 时的思考准则"}

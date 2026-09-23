@@ -24,7 +24,8 @@ export const useProjectsStore = defineStore('projects', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await api.get<ProjectsResp>('/api/projects')
+      // 带上 token：管理员可看到 private 项目，公开访客自动过滤
+      const data = await api.get<ProjectsResp>('/api/projects', { auth: true })
       items.value = Array.isArray(data?.items) ? data.items : []
       lastSyncAt.value = Date.now()
     } catch (e) {

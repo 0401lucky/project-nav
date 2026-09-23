@@ -1,41 +1,45 @@
 :root {
   color-scheme: light;
 
-  /* Vibrant light base */
-  --bg-deep: #f8faff;
-  --bg-elevated: #ffffff;
-  --bg-mist: rgba(255, 255, 255, 0.4);
+  /* ---------- 基底（暖纸米白，编辑部质感） ---------- */
+  --bg-deep: #f7f3ec;
+  --bg-elevated: #fffdf9;
+  --bg-mist: rgba(255, 253, 249, 0.6);
+  --bg-sunken: #efe9df;
 
-  /* Light Glassmorphism */
-  --surface-glass: rgba(255, 255, 255, 0.65);
-  --surface-glass-strong: rgba(255, 255, 255, 0.85);
-  --surface-glass-soft: rgba(255, 255, 255, 0.4);
+  /* ---------- 面板（暖白半透层） ---------- */
+  --surface-glass: rgba(255, 253, 249, 0.82);
+  --surface-glass-strong: rgba(255, 253, 249, 0.95);
+  --surface-glass-soft: rgba(255, 253, 249, 0.55);
 
-  /* Bright borders */
-  --line: rgba(255, 255, 255, 0.6);
-  --line-strong: rgba(255, 255, 255, 0.9);
-  --line-accent: rgba(255, 51, 102, 0.5);
+  /* ---------- 描边（暖墨细线系统） ---------- */
+  --line: rgba(48, 38, 28, 0.1);
+  --line-strong: rgba(48, 38, 28, 0.2);
+  --line-accent: rgba(207, 69, 32, 0.45);
 
-  /* Super vibrant aurora/mesh colors */
-  --aurora-1: #ff3366; /* Vibrant Pink */
-  --aurora-2: #00f2fe; /* Bright Cyan */
-  --aurora-3: #4facfe; /* Deep Blue */
-  --aurora-4: #fddb92; /* Bright Yellow/Orange */
-  --aurora-5: #d4fc79; /* Lime Green */
+  /* ---------- 强调色（朱红 + 墨青；沿用旧变量名以兼容全部组件） ---------- */
+  --aurora-1: #cf4520; /* 朱红（主强调） */
+  --aurora-2: #0f766e; /* 墨青 */
+  --aurora-3: #a83418; /* 深朱 */
+  --aurora-4: #b3325f; /* 玫红 */
+  --aurora-5: #4d7c0f; /* 橄榄绿 */
 
-  /* Text Colors (Dark for readability) */
-  --text-primary: #1e1e2f;
-  --text-secondary: #4a4a68;
-  --text-muted: #8b8b9e;
-  --text-subtle: #b1b1c6;
+  --accent: #cf4520;
+  --accent-rgb: 207, 69, 32;
 
-  /* Status Colors */
-  --status-online: #10b981;
-  --status-degraded: #f59e0b;
-  --status-offline: #ef4444;
-  --status-unknown: rgba(0, 0, 0, 0.2);
+  /* ---------- 文本（暖墨） ---------- */
+  --text-primary: #221c14;
+  --text-secondary: #52493c;
+  --text-muted: #877c6b;
+  --text-subtle: #b3a893;
 
-  /* Spacing */
+  /* ---------- 状态色 ---------- */
+  --status-online: #3f9142;
+  --status-degraded: #d97706;
+  --status-offline: #dc2626;
+  --status-unknown: rgba(48, 38, 28, 0.14);
+
+  /* ---------- 间距 ---------- */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -45,36 +49,45 @@
   --space-7: 48px;
   --space-8: 64px;
 
-  /* Border Radii */
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
-  --radius-2xl: 36px;
+  /* ---------- 圆角（编辑部：克制的小圆角） ---------- */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
   --radius-full: 999px;
 
-  /* Blurs (Increase for better glass effect) */
-  --blur-sm: 8px;
-  --blur-md: 16px;
-  --blur-lg: 32px;
-  --blur-xl: 48px;
+  /* ---------- 模糊（性能友好档位） ---------- */
+  --blur-sm: 6px;
+  --blur-md: 10px;
+  --blur-lg: 16px;
+  --blur-xl: 24px;
 
-  /* Easing */
+  /* ---------- 缓动 ---------- */
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-spring: cubic-bezier(0.68, -0.6, 0.32, 1.6);
   --ease-spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* Shadows for light glass */
+  /* ---------- 阴影（暖纸：柔和纸影） ---------- */
   --shadow-glass:
-    0 4px 6px -1px rgba(0, 0, 0, 0.05),
-    0 12px 40px -4px rgba(31, 38, 135, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    inset 1px 0 0 rgba(255, 255, 255, 0.5);
+    0 1px 0 0 rgba(48, 38, 28, 0.03),
+    0 1px 3px rgba(48, 38, 28, 0.05),
+    0 10px 28px -10px rgba(48, 38, 28, 0.1);
+
+  --shadow-elevated:
+    0 1px 2px rgba(48, 38, 28, 0.06),
+    0 10px 28px -6px rgba(48, 38, 28, 0.12),
+    0 28px 56px -20px rgba(48, 38, 28, 0.16);
 
   --shadow-glow-aurora:
-    0 0 60px rgba(255, 51, 102, 0.4),
-    0 0 90px rgba(0, 242, 254, 0.3);
+    0 0 0 1px rgba(207, 69, 32, 0.06),
+    0 16px 40px -12px rgba(207, 69, 32, 0.14);
 
-  --font-sans: 'Inter', -apple-system, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  /* ---------- 字体 ---------- */
+  --font-sans: 'PingFang SC', 'MiSans', 'HarmonyOS Sans SC', 'Microsoft YaHei',
+    -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: 'Fraunces', 'Songti SC', 'STSong', Georgia, 'PingFang SC',
+    'Microsoft YaHei', serif;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, 'SFMono-Regular',
+    Menlo, Consolas, monospace;
 }

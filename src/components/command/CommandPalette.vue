@@ -152,7 +152,7 @@ function hostOf(p: Project): string {
   align-items: start;
   justify-content: center;
   padding: 12vh var(--space-4) var(--space-4);
-  background: rgba(7, 9, 26, 0.55);
+  background: rgba(30, 25, 20, 0.45);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -187,7 +187,7 @@ function hostOf(p: Project): string {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(48, 38, 28, 0.05);
   border: 1px solid var(--line);
   color: var(--text-muted);
   letter-spacing: 0.05em;
@@ -218,10 +218,10 @@ function hostOf(p: Project): string {
   transition: background 0.15s var(--ease-out-soft);
 }
 .row:hover, .row.active {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(48, 38, 28, 0.05);
 }
 .row.active {
-  background: rgba(192, 132, 252, 0.16);
+  background: rgba(207, 69, 32, 0.1);
 }
 
 .row-icon {
@@ -233,7 +233,7 @@ function hostOf(p: Project): string {
   font-weight: 600;
   color: #fff;
   font-size: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(48, 38, 28, 0.08);
 }
 
 .row-meta {
@@ -262,7 +262,7 @@ function hostOf(p: Project): string {
   color: var(--text-muted);
   padding: 2px 8px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(48, 38, 28, 0.05);
 }
 
 .empty-tip {
@@ -285,7 +285,7 @@ function hostOf(p: Project): string {
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(48, 38, 28, 0.07);
   border: 1px solid var(--line);
 }
 

@@ -3,7 +3,8 @@ import { KV_KEYS } from '../_types'
 import { json, fail } from '../_lib/http'
 import { getBearer, verifyToken } from '../_lib/auth'
 
-export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
+// GET：根据是否携带有效 token 决定是否返回 private 项目
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const raw = await env.NAV_KV.get(KV_KEYS.projects)
   let items: Project[] = []
   if (raw) {
@@ -13,6 +14,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
     } catch {
       /* 数据损坏：返回空 */
     }
+  }
+
+  // 已登录管理员：原样返回
+  const token = getBearer(request)
+  const isAdmin = token ? await verifyToken(env.EDIT_SECRET, token) : false
+  if (!isAdmin) {
+    items = items.filter((p) => !p.private)
   }
   return json({ items })
 }
@@ -43,9 +51,10 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
       url: String(p.url).slice(0, 500),
       description: p.description ? String(p.description).slice(0, 300) : undefined,
       category: String(p.category).slice(0, 24),
-      icon: p.icon ? String(p.icon).slice(0, 200) : undefined,
+      icon: p.icon ? String(p.icon).slice(0, 500) : undefined,
       accentColor: p.accentColor ? String(p.accentColor).slice(0, 9) : undefined,
       pinned: !!p.pinned,
+      private: !!p.private,
       createdAt: typeof p.createdAt === 'number' ? p.createdAt : Date.now(),
       visits: typeof p.visits === 'number' ? p.visits : 0,
     })

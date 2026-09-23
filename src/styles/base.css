@@ -50,6 +50,32 @@ textarea {
   outline: 0;
 }
 
+/* 全局兜底：select 的 option 在某些 OS 下色彩异常，统一锁定为深底浅字 */
+select {
+  color: var(--text-primary);
+  background-color: var(--bg-elevated);
+}
+select option,
+select optgroup {
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 6px 8px;
+}
+select option:disabled {
+  color: var(--text-muted);
+}
+select option:checked {
+  background-color: rgba(207, 69, 32, 0.14);
+  color: var(--text-primary);
+}
+
+input:-webkit-autofill,
+textarea:-webkit-autofill {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0px 1000px var(--bg-elevated) inset;
+  caret-color: var(--text-primary);
+}
+
 img,
 svg {
   display: block;
@@ -57,19 +83,24 @@ svg {
 }
 
 ::selection {
-  background: var(--aurora-1);
-  color: #fff;
+  background: rgba(207, 69, 32, 0.22);
+  color: var(--text-primary);
 }
 
-/* 滚动条：保持极光主题 */
+/* 滚动条：暖纸精致版 */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--aurora-1), var(--aurora-2));
+  background: rgba(48, 38, 28, 0.18);
   border-radius: var(--radius-full);
-  border: 2px solid var(--bg-elevated);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(48, 38, 28, 0.3);
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
   background: transparent;

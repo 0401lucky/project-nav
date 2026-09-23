@@ -61,7 +61,7 @@ function onBackdropClick(e: MouseEvent) {
       class="backdrop"
       @click="onBackdropClick"
     >
-      <div class="modal glass" role="dialog" aria-modal="true">
+      <div class="modal" role="dialog" aria-modal="true">
         <div class="lock-orb">
           <svg viewBox="0 0 32 32" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="7" y="14" width="18" height="14" rx="3" />
@@ -103,7 +103,7 @@ function onBackdropClick(e: MouseEvent) {
   z-index: 100;
   display: grid;
   place-items: center;
-  background: rgba(7, 9, 26, 0.65);
+  background: rgba(30, 25, 20, 0.45);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   padding: var(--space-4);
@@ -116,30 +116,36 @@ function onBackdropClick(e: MouseEvent) {
   text-align: center;
   display: grid;
   gap: var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-elevated);
 }
 
 .lock-orb {
   margin: 0 auto var(--space-2);
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--aurora-1), var(--aurora-2));
+  background: linear-gradient(135deg, var(--aurora-1), var(--aurora-3));
   color: #fff;
-  box-shadow: 0 0 32px rgba(192, 132, 252, 0.6);
+  box-shadow: 0 8px 24px rgba(207, 69, 32, 0.35);
 }
 
 h2 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 p {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 13px;
+  color: var(--text-muted);
+  font-size: 12.5px;
   line-height: 1.6;
 }
 
@@ -150,11 +156,12 @@ p {
 }
 
 .input {
-  height: 44px;
+  height: 42px;
   padding: 0 var(--space-4);
-  background: var(--surface-glass);
+  background: var(--bg-sunken);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
+  color: var(--text-primary);
   font-size: 14px;
   text-align: center;
   letter-spacing: 0.1em;
@@ -162,12 +169,12 @@ p {
 }
 .input:focus {
   border-color: var(--line-accent);
-  background: var(--surface-glass-strong);
-  box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.18);
+  background: var(--bg-elevated);
+  box-shadow: 0 0 0 3px rgba(207, 69, 32, 0.15);
 }
 
 .err {
-  color: #fca5a5;
+  color: #ef4444;
   font-size: 12.5px;
   margin: 0;
 }

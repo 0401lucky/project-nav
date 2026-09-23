@@ -7,17 +7,27 @@ interface TiltOptions {
   perspective?: number
 }
 
+// 检测是否应禁用 tilt：reduced-motion / 触屏 / 小屏 / 低端
+function shouldDisableTilt(): boolean {
+  if (typeof matchMedia === 'undefined') return false
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return true
+  if (matchMedia('(hover: none)').matches) return true
+  if (matchMedia('(max-width: 768px)').matches) return true
+  // 低核心设备直接放弃
+  const cores = (navigator as Navigator & { hardwareConcurrency?: number })
+    .hardwareConcurrency
+  if (typeof cores === 'number' && cores > 0 && cores <= 2) return true
+  return false
+}
+
 export function useTilt(elRef: Ref<HTMLElement | null>, opts: TiltOptions = {}) {
-  const max = opts.max ?? 8
-  const scale = opts.scale ?? 1.02
+  const max = opts.max ?? 6
+  const scale = opts.scale ?? 1.015
   const perspective = opts.perspective ?? 800
 
   let raf = 0
   let bound: HTMLElement | null = null
-
-  const reduceMotion =
-    typeof matchMedia !== 'undefined' &&
-    matchMedia('(prefers-reduced-motion: reduce)').matches
+  const disabled = shouldDisableTilt()
 
   function onMove(e: MouseEvent) {
     if (!bound || raf) return
@@ -47,7 +57,7 @@ export function useTilt(elRef: Ref<HTMLElement | null>, opts: TiltOptions = {}) 
   }
 
   onMounted(() => {
-    if (reduceMotion) return
+    if (disabled) return
     bound = elRef.value
     if (!bound) return
     bound.addEventListener('mousemove', onMove, { passive: true })

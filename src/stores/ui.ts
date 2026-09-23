@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useProjectsStore } from './projects'
 import type { Project } from '@/types'
+import { detectEmbedMode, detectEmbedOffsetTop } from '@/composables/useEmbedMode'
 
 export type EditorTarget =
   | { kind: 'add' }
@@ -16,6 +17,11 @@ export const useUiStore = defineStore('ui', () => {
   const editorTarget = ref<EditorTarget>(null)
   const screenshotOpen = ref(false)
   const passwordOpen = ref(false)
+  const adminOpen = ref(false)
+  const aiWorkbenchOpen = ref(false)
+  const submitOpen = ref(false)
+  const isEmbed = ref(detectEmbedMode())
+  const embedOffsetTop = ref(detectEmbedOffsetTop())
 
   const projects = useProjectsStore()
 
@@ -62,6 +68,11 @@ export const useUiStore = defineStore('ui', () => {
     editorTarget,
     screenshotOpen,
     passwordOpen,
+    adminOpen,
+    aiWorkbenchOpen,
+    submitOpen,
+    isEmbed,
+    embedOffsetTop,
     filteredProjects,
     openAdd,
     openEdit,

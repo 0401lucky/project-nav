@@ -188,16 +188,16 @@ function colorFor(s: HealthSample | null): string {
   margin-left: auto;
   font-size: 10.5px;
   font-family: var(--font-mono);
-  color: var(--aurora-2);
+  color: var(--accent);
   letter-spacing: 0.04em;
   padding: 2px 6px;
   border-radius: 6px;
-  border: 1px solid rgba(34, 211, 238, 0.3);
+  border: 1px solid rgba(207, 69, 32, 0.3);
   transition: all 0.2s var(--ease-out-soft);
 }
 .check:hover:not(:disabled) {
-  background: rgba(34, 211, 238, 0.12);
-  border-color: rgba(34, 211, 238, 0.5);
+  background: rgba(207, 69, 32, 0.12);
+  border-color: rgba(207, 69, 32, 0.5);
 }
 .check:disabled {
   opacity: 0.5;

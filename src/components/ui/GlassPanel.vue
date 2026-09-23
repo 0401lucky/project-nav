@@ -32,8 +32,7 @@ defineProps<{
 .glass-panel.hoverable:hover {
   border-color: var(--line-strong);
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.12) inset,
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+    0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
     0 20px 60px rgba(0, 0, 0, 0.5),
     var(--shadow-glow-aurora);
 }

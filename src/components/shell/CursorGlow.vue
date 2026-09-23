@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
-const mx = ref('50%')
-const my = ref('50%')
+// 全部用 px 字符串，避免与 CSS 中 calc(... - 50%) 单位混用
+const mx = ref('50vw')
+const my = ref('50vh')
 let raf = 0
 
 function onMove(e: MouseEvent) {

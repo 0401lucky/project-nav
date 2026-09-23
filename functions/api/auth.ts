@@ -1,12 +1,16 @@
 import type { Env } from '../_types'
 import { json, fail } from '../_lib/http'
-import { signToken, timingSafeEqual } from '../_lib/auth'
+import { signToken } from '../_lib/auth'
+import { hasAnyPassword, verifyAdminPassword } from '../_lib/settings'
 
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!env.EDIT_PASSWORD || !env.EDIT_SECRET) {
-    return fail(503, '后端未配置 EDIT_PASSWORD / EDIT_SECRET')
+  if (!env.EDIT_SECRET) {
+    return fail(503, '后端未配置 EDIT_SECRET')
+  }
+  if (!(await hasAnyPassword(env))) {
+    return fail(503, '后端尚未设置任何编辑密码')
   }
 
   let body: { password?: string }
@@ -18,7 +22,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const password = (body?.password || '').trim()
   if (!password) return fail(400, '缺少密码')
 
-  if (!(await timingSafeEqual(password, env.EDIT_PASSWORD))) {
+  if (!(await verifyAdminPassword(env, password))) {
     return fail(401, '密码错误')
   }
 

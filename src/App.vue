@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import AuroraBg from '@/components/shell/AuroraBg.vue'
 import CursorGlow from '@/components/shell/CursorGlow.vue'
 import TopBar from '@/components/shell/TopBar.vue'
+import EmbedToolbar from '@/components/shell/EmbedToolbar.vue'
 import CategoryFilter from '@/components/ui/CategoryFilter.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import GlassButton from '@/components/ui/GlassButton.vue'
@@ -12,6 +13,9 @@ import ProjectEditor from '@/components/editor/ProjectEditor.vue'
 import EditModeBar from '@/components/editor/EditModeBar.vue'
 import ScreenshotImport from '@/components/editor/ScreenshotImport.vue'
 import CommandPalette from '@/components/command/CommandPalette.vue'
+import AdminPanel from '@/components/admin/AdminPanel.vue'
+import AiWorkbench from '@/components/admin/AiWorkbench.vue'
+import SubmitForm from '@/components/submit/SubmitForm.vue'
 import { useProjectsStore } from '@/stores/projects'
 import { useUiStore } from '@/stores/ui'
 import { useHealthPolling } from '@/composables/useHealthPolling'
@@ -30,15 +34,40 @@ onMounted(async () => {
     projects.items = DEMO_PROJECTS.slice()
   }
 })
+
+// 嵌入模式：把 html/body 改成透明，让宿主页面（如 New API）的背景透出来
+// 同时给根节点打个标记 class，方便外部通过 CSS 进一步定制
+watch(
+  () => ui.isEmbed,
+  (embed) => {
+    if (typeof document === 'undefined') return
+    if (embed) {
+      document.documentElement.classList.add('is-embed')
+      document.body.classList.add('is-embed')
+      document.documentElement.style.background = 'transparent'
+      document.body.style.background = 'transparent'
+    } else {
+      document.documentElement.classList.remove('is-embed')
+      document.body.classList.remove('is-embed')
+      document.documentElement.style.background = ''
+      document.body.style.background = ''
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
-  <AuroraBg />
-  <CursorGlow />
+  <AuroraBg v-if="!ui.isEmbed" />
+  <CursorGlow v-if="!ui.isEmbed" />
 
-  <TopBar />
+  <TopBar v-if="!ui.isEmbed" />
 
-  <main class="page">
+  <main
+    class="page"
+    :class="{ embedded: ui.isEmbed }"
+    :style="ui.isEmbed ? { paddingTop: ui.embedOffsetTop + 'px' } : undefined"
+  >
     <section class="filters">
       <CategoryFilter
         :categories="projects.categories"
@@ -87,7 +116,11 @@ onMounted(async () => {
   <ProjectEditor />
   <ScreenshotImport />
   <EditModeBar />
+  <EmbedToolbar v-if="ui.isEmbed && !ui.editMode" />
   <CommandPalette />
+  <AdminPanel />
+  <AiWorkbench />
+  <SubmitForm />
 </template>
 
 <style scoped>
@@ -97,6 +130,14 @@ onMounted(async () => {
   max-width: 1280px;
   margin: 0 auto;
   padding: var(--space-4) var(--space-6) var(--space-8);
+}
+
+/* 嵌入模式：让出宿主页面的顶栏（如 NewAPI 顶部菜单）—— padding-top 由 ui.embedOffsetTop 注入 */
+.page.embedded {
+  padding: 0 var(--space-4) var(--space-7);
+  max-width: none;
+  /* 嵌入时背景透明，让宿主页面自己的色调透出来 */
+  background: transparent;
 }
 
 .filters {
@@ -113,17 +154,17 @@ onMounted(async () => {
 }
 
 .loader-orb {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--aurora-1), var(--aurora-2));
-  box-shadow: 0 0 24px var(--aurora-1);
-  animation: loader-pulse 1.4s var(--ease-out-soft) infinite;
+  border: 1.5px solid rgba(207, 69, 32, 0.15);
+  border-top-color: var(--accent);
+  box-shadow: 0 0 20px rgba(207, 69, 32, 0.15);
+  animation: loader-spin 0.9s linear infinite;
 }
 
-@keyframes loader-pulse {
-  0%, 100% { transform: scale(0.85); opacity: 0.6; }
-  50%      { transform: scale(1.15); opacity: 1; }
+@keyframes loader-spin {
+  to { transform: rotate(360deg); }
 }
 
 .empty-wrap, .grid-wrap {

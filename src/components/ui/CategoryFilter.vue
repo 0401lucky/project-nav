@@ -12,6 +12,7 @@ defineEmits<{
 
 <template>
   <div class="cat-filter">
+    <span class="rail-label" aria-hidden="true">INDEX ·</span>
     <button
       class="cat"
       :class="{ on: active === null }"
@@ -36,65 +37,71 @@ defineEmits<{
 .cat-filter {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  align-items: center;
+  gap: 6px;
+}
+
+.rail-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text-subtle);
+  margin-right: var(--space-2);
+  user-select: none;
 }
 
 .cat {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-4);
-  height: 36px;
+  gap: 6px;
+  padding: 0 12px;
+  height: 30px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(var(--blur-md));
-  -webkit-backdrop-filter: blur(var(--blur-md));
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
   color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s var(--ease-spring-bounce);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition:
+    background 0.15s var(--ease-out-soft),
+    border-color 0.15s var(--ease-out-soft),
+    color 0.15s var(--ease-out-soft),
+    box-shadow 0.15s var(--ease-out-soft);
 }
 
 .cat:hover {
   color: var(--text-primary);
-  border-color: rgba(255, 51, 102, 0.3);
-  background: rgba(255, 255, 255, 0.9);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+  border-color: var(--line-strong);
+  background: var(--surface-glass-strong);
 }
 
 .cat.on {
-  background: linear-gradient(
-    135deg,
-    var(--aurora-1),
-    var(--aurora-3)
-  );
-  border-color: transparent;
+  background: var(--accent);
+  border-color: var(--aurora-3);
   color: #fff;
-  box-shadow: 0 8px 20px rgba(255, 51, 102, 0.4);
-  transform: translateY(-2px) scale(1.02);
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(207, 69, 32, 0.28);
 }
 
 .num {
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
   padding: 1px 6px;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--bg-sunken);
   border-radius: var(--radius-full);
-  font-weight: 700;
+  font-weight: 600;
+  font-family: var(--font-mono);
 }
 
 .cat:hover .num {
-  background: rgba(255, 51, 102, 0.1);
-  color: var(--aurora-1);
+  background: rgba(48, 38, 28, 0.1);
+  color: var(--text-secondary);
 }
 
 .cat.on .num {
   background: rgba(255, 255, 255, 0.25);
   color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 </style>

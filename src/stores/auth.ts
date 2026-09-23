@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api, setToken } from '@/api/client'
+import { useProjectsStore } from '@/stores/projects'
 
 const TOKEN_KEY = 'nav-aurora.token'
 const EXPIRES_KEY = 'nav-aurora.token-expires'
@@ -40,6 +41,12 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       /* ignore */
     }
+    // 登录后重新拉项目，把 private 卡片捞出来
+    try {
+      await useProjectsStore().fetchAll()
+    } catch {
+      /* 拉取失败不影响登录态 */
+    }
   }
 
   function clear() {
@@ -51,6 +58,12 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       /* ignore */
     }
+    // 退出后重新拉项目，让 private 卡片消失
+    useProjectsStore()
+      .fetchAll()
+      .catch(() => {
+        /* ignore */
+      })
   }
 
   return { token, expiresAt, isAuthed, verify, clear }

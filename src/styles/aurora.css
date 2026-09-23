@@ -1,187 +1,135 @@
-/* ============ 极光/流体背景：高度饱和度的色彩与流体形态 ============ */
+/* ============ 背景：暖纸编辑部 —— 米白纸面 + 细点阵 + 顶部朱红刊头线 ============ */
 .aurora-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   overflow: hidden;
   background-color: var(--bg-deep);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(255, 51, 102, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(0, 242, 254, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(253, 219, 146, 0.15) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(79, 172, 254, 0.15) 0px, transparent 50%);
+  contain: strict;
+  background-image:
+    /* 顶部一抹暖光，纸面不至于死白 */
+    radial-gradient(
+      ellipse 90% 50% at 50% -14%,
+      rgba(255, 251, 243, 0.9) 0%,
+      transparent 65%
+    ),
+    /* 右下极淡的赭色晕染 */
+    radial-gradient(
+      ellipse 55% 45% at 100% 100%,
+      rgba(207, 69, 32, 0.035) 0%,
+      transparent 60%
+    ),
+    /* 左侧极淡墨青晕染 */
+    radial-gradient(
+      ellipse 45% 40% at 0% 55%,
+      rgba(15, 118, 110, 0.03) 0%,
+      transparent 60%
+    );
 }
 
-.aurora-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(100px) saturate(1.8);
-  opacity: 0.8;
-  mix-blend-mode: multiply;
-  will-change: transform, border-radius;
-}
-
-/* 赋予这些 Blob 不同的初始大小和极艳丽的颜色 */
-.aurora-blob.b1 {
-  width: 60vmax;
-  height: 60vmax;
-  left: -20vmax;
-  top: -20vmax;
-  background: radial-gradient(circle, var(--aurora-1) 0%, transparent 70%);
-  animation: blob-float-1 25s ease-in-out infinite alternate;
-}
-.aurora-blob.b2 {
-  width: 50vmax;
-  height: 60vmax;
-  right: -10vmax;
-  top: -10vmax;
-  background: radial-gradient(circle, var(--aurora-2) 0%, transparent 70%);
-  animation: blob-float-2 30s ease-in-out infinite alternate;
-}
-.aurora-blob.b3 {
-  width: 70vmax;
-  height: 50vmax;
-  left: -10vmax;
-  bottom: -20vmax;
-  background: radial-gradient(circle, var(--aurora-4) 0%, transparent 70%);
-  animation: blob-float-3 28s ease-in-out infinite alternate;
-}
-.aurora-blob.b4 {
-  width: 55vmax;
-  height: 55vmax;
-  right: 0vmax;
-  bottom: -15vmax;
-  background: radial-gradient(circle, var(--aurora-3) 0%, transparent 70%);
-  animation: blob-float-4 35s ease-in-out infinite alternate;
-}
-
-.aurora-noise {
+/* 纸面点阵纹理（印刷网点） */
+.aurora-bg::before {
+  content: '';
   position: absolute;
   inset: 0;
+  background-image: radial-gradient(
+    rgba(48, 38, 28, 0.055) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+  background-position: -1px -1px;
   pointer-events: none;
-  opacity: 0.25;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 30%, #000 25%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 30%, #000 25%, transparent 85%);
 }
 
-/* 高级动画：流体变形与移动 */
-@keyframes blob-float-1 {
-  0% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
-  50% { transform: translate(15vmax, 10vmax) scale(1.2) rotate(90deg); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-  100% { transform: translate(-5vmax, 20vmax) scale(0.9) rotate(180deg); border-radius: 50% 50% 40% 60% / 40% 60% 50% 60%; }
-}
-@keyframes blob-float-2 {
-  0% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 50% 50% 30% 70% / 50% 50% 70% 50%; }
-  50% { transform: translate(-20vmax, 15vmax) scale(1.1) rotate(-90deg); border-radius: 30% 70% 50% 50% / 70% 30% 50% 50%; }
-  100% { transform: translate(10vmax, -10vmax) scale(0.95) rotate(-180deg); border-radius: 60% 40% 40% 60% / 40% 60% 40% 60%; }
-}
-@keyframes blob-float-3 {
-  0% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 60% 40% 40% 60% / 60% 40% 60% 40%; }
-  50% { transform: translate(10vmax, -20vmax) scale(1.15) rotate(90deg); border-radius: 40% 60% 60% 40% / 40% 60% 40% 60%; }
-  100% { transform: translate(-15vmax, -5vmax) scale(1.05) rotate(180deg); border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
-}
-@keyframes blob-float-4 {
-  0% { transform: translate(0, 0) scale(1) rotate(0deg); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
-  50% { transform: translate(-15vmax, -15vmax) scale(1.2) rotate(-90deg); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-  100% { transform: translate(5vmax, 10vmax) scale(0.9) rotate(-180deg); border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+/* 顶部刊头色带：一道细朱红压边 */
+.aurora-bg::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--aurora-3),
+    var(--aurora-1) 40%,
+    #e8703f 60%,
+    var(--aurora-1)
+  );
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .aurora-blob { animation: none; }
+/* 静态光斑（沿用类名；纸面主题下隐藏） */
+.aurora-blob,
+.aurora-blob.b1,
+.aurora-blob.b2,
+.aurora-blob.b3,
+.aurora-noise {
+  display: none;
 }
 
-/* ============ 亮色高级玻璃面板 ============ */
+/* ============ 玻璃面板（暖白纸卡版） ============ */
 .glass {
   position: relative;
   background: var(--surface-glass);
-  backdrop-filter: blur(var(--blur-lg)) saturate(1.8);
-  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(1.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-glass);
-  /* 使得背景的鲜艳颜色稍微透过来 */
 }
 
 .glass-strong {
   background: var(--surface-glass-strong);
 }
 
-.glass::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 1) 0%,
-    rgba(255, 255, 255, 0.4) 30%,
-    rgba(255, 255, 255, 0) 50%,
-    rgba(255, 255, 255, 0.2) 70%,
-    rgba(255, 255, 255, 0.8) 100%
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 253, 249, 0.97);
   }
 }
 
-/* ============ 彩色鼠标光晕拖尾 ============ */
+/* ============ 鼠标光晕（纸面主题：极淡暖晕） ============ */
 .cursor-glow {
   position: fixed;
   pointer-events: none;
   z-index: 100;
-  width: 150px;
-  height: 150px;
-  left: var(--mx, 50%);
-  top: var(--my, 50%);
-  transform: translate(-50%, -50%);
+  width: 180px;
+  height: 180px;
+  left: 0;
+  top: 0;
+  transform: translate3d(
+    calc(var(--mx, 50vw) - 50%),
+    calc(var(--my, 50vh) - 50%),
+    0
+  );
   background: radial-gradient(
     circle,
-    var(--aurora-1) 0%,
-    var(--aurora-2) 40%,
+    rgba(207, 69, 32, 0.06) 0%,
+    rgba(217, 119, 6, 0.03) 40%,
     transparent 80%
   );
-  mix-blend-mode: screen;
-  filter: blur(30px);
-  opacity: 0.8;
-  transition: opacity 0.3s ease, width 0.3s ease, height 0.3s ease;
-  will-change: left, top;
+  filter: blur(24px);
+  opacity: 0.9;
+  will-change: transform;
+  transition: opacity 0.3s ease;
 }
 
-/* Click scale effect for cursor glow handled in JS potentially, but add active state */
-body:active .cursor-glow {
-  width: 250px;
-  height: 250px;
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cursor-glow { display: none; }
-}
-@media (hover: none) {
+@media (prefers-reduced-motion: reduce),
+       (max-width: 1024px),
+       (hover: none) {
   .cursor-glow { display: none; }
 }
 
-/* ============ 玻璃内部分割线 ============ */
+/* ============ 分割线 ============ */
 .glass-divider {
   height: 1px;
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(0, 0, 0, 0.05) 30%,
-    rgba(0, 0, 0, 0.05) 70%,
+    var(--line) 30%,
+    var(--line) 70%,
     transparent
   );
 }

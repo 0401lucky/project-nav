@@ -2,6 +2,8 @@ import type { Env } from '../_types'
 import type { OcrCandidate } from '../../src/types'
 import { json, fail } from '../_lib/http'
 import { getBearer, verifyToken } from '../_lib/auth'
+import { readLlmSettings, pickOcrProvider } from '../_lib/settings'
+import { chatCompletions, extractContent } from '../_lib/llm'
 
 const PROMPT = `这是一张项目部署平台（如 Cloudflare、Zeabur、Vercel）的控制台截图。请提取所有可见的项目名称及其对应的 URL（例如 xxx.workers.dev、xxx.zeabur.app、xxx.vercel.app、自定义域名等）。
 只输出 JSON 数组本身，不要解释，不要 markdown 代码块，不要 \`\`\` 包裹。
@@ -12,9 +14,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const token = getBearer(request)
   if (!(await verifyToken(env.EDIT_SECRET, token))) {
     return fail(401, '未授权')
-  }
-  if (!env.OCR_PROVIDER || !env.OCR_API_KEY) {
-    return fail(503, '后端未配置 OCR_PROVIDER / OCR_API_KEY')
   }
 
   let body: { image?: string; mime?: string }
@@ -30,13 +29,28 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return fail(400, '不支持的图片格式')
   }
 
-  const provider = env.OCR_PROVIDER.toLowerCase()
+  // 优先使用后台管理界面配置的 OpenAI 兼容渠道
+  const settings = await readLlmSettings(env)
+  const provider = pickOcrProvider(settings)
   let raw = ''
+
   try {
-    if (provider === 'dashscope') raw = await callDashscope(env, image, mime)
-    else if (provider === 'openai') raw = await callOpenAI(env, image, mime)
-    else if (provider === 'anthropic') raw = await callAnthropic(env, image, mime)
-    else return fail(400, `未知的 OCR_PROVIDER: ${provider}`)
+    if (provider) {
+      raw = await callOpenAICompatible(provider, image, mime)
+    } else if (env.OCR_PROVIDER && env.OCR_API_KEY) {
+      // 回退到环境变量（保持旧版部署能继续工作）
+      const p = env.OCR_PROVIDER.toLowerCase()
+      if (p === 'dashscope') raw = await callDashscope(env, image, mime)
+      else if (p === 'openai') raw = await callOpenAILegacy(env, image, mime)
+      else if (p === 'anthropic') raw = await callAnthropic(env, image, mime)
+      else return fail(400, `未知的 OCR_PROVIDER: ${p}`)
+    } else {
+      return fail(
+        503,
+        '未配置 OCR 渠道',
+        '请进入「后台管理」添加一个支持视觉的 OpenAI 兼容渠道，或在环境变量里设置 OCR_PROVIDER / OCR_API_KEY',
+      )
+    }
   } catch (e) {
     return fail(502, 'Vision API 调用失败', (e as Error).message)
   }
@@ -79,7 +93,38 @@ function toBase64Only(image: string): string {
   return image.startsWith('data:') ? image.split(',')[1] || '' : image
 }
 
-async function callDashscope(env: Env, image: string, mime: string): Promise<string> {
+// ---------------- 主路径：OpenAI 兼容协议（chat completions + image_url） ----------------
+
+async function callOpenAICompatible(
+  provider: ReturnType<typeof pickOcrProvider> & object,
+  image: string,
+  mime: string,
+): Promise<string> {
+  const dataUrl = toDataUrl(image, mime)
+  const data = await chatCompletions(provider, {
+    model: provider.activeModel,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: PROMPT },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    max_tokens: 1500,
+    temperature: 0,
+  })
+  return extractContent(data)
+}
+
+// ---------------- 兜底：旧版环境变量分支（保持向后部署兼容） ----------------
+
+async function callDashscope(
+  env: Env,
+  image: string,
+  mime: string,
+): Promise<string> {
   const dataUrl = toDataUrl(image, mime)
   const resp = await fetch(
     'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
@@ -118,7 +163,11 @@ async function callDashscope(env: Env, image: string, mime: string): Promise<str
   return data?.output?.text || ''
 }
 
-async function callOpenAI(env: Env, image: string, mime: string): Promise<string> {
+async function callOpenAILegacy(
+  env: Env,
+  image: string,
+  mime: string,
+): Promise<string> {
   const dataUrl = toDataUrl(image, mime)
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -148,7 +197,11 @@ async function callOpenAI(env: Env, image: string, mime: string): Promise<string
   return data?.choices?.[0]?.message?.content || ''
 }
 
-async function callAnthropic(env: Env, image: string, mime: string): Promise<string> {
+async function callAnthropic(
+  env: Env,
+  image: string,
+  mime: string,
+): Promise<string> {
   const base64 = toBase64Only(image)
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
