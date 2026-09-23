@@ -36,6 +36,9 @@ const canSave = computed(
 )
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
+/** 最近一次发起抓取的网址：同一网址不重复抓（含抓完回写 finalUrl 触发的那次） */
+let lastRequested = ''
+let requestSeq = 0
 
 /**
  * 贴完网址自动补全标题、描述与图标候选。
@@ -43,30 +46,40 @@ let debounceTimer: ReturnType<typeof setTimeout> | undefined
  */
 async function fetchMeta(): Promise<void> {
   const target = url.value.trim()
-  if (target === '' || isEdit.value || fetching.value) return
+  if (target === '' || isEdit.value || target === lastRequested) return
 
+  lastRequested = target
+  const seq = ++requestSeq
   fetching.value = true
   fetchNote.value = null
   try {
     const meta = await api.meta(target)
-    if (meta.finalUrl !== '') url.value = meta.finalUrl
+    // 抓取期间用户改了网址：这份结果已过期，丢掉，改后的网址有自己的那次抓取
+    if (url.value.trim() !== target) return
+    if (meta.finalUrl !== '') {
+      lastRequested = meta.finalUrl
+      url.value = meta.finalUrl
+    }
     // 只填空字段，不覆盖用户已经敲进去的内容
     if (meta.title !== undefined && title.value.trim() === '') title.value = meta.title
     if (meta.description !== undefined && description.value.trim() === '') {
       description.value = meta.description
     }
     candidates.value = meta.iconCandidates
+    chosenIcon.value = null
     if (meta.error !== undefined) {
       fetchNote.value = '没能抓取到信息，可以手动填写'
     } else if (meta.iconCandidates.length === 0) {
       fetchNote.value = '这个站点没有提供图标，会用首字色块'
     }
   } catch (error) {
+    if (url.value.trim() !== target) return
     // 抓取失败不阻塞保存
     fetchNote.value =
       error instanceof ApiError ? `没能抓取到信息：${error.message}` : '没能抓取到信息，可以手动填写'
   } finally {
-    fetching.value = false
+    // 只有最新一次抓取结束才收起「正在抓取」，旧请求晚回来不该把它提前关掉
+    if (seq === requestSeq) fetching.value = false
   }
 }
 
@@ -119,7 +132,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <form class="form" @submit.prevent="save" @keydown.enter.prevent="save">
+  <form class="form" @submit.prevent="save">
     <div class="field">
       <label class="field__label" for="bm-url">网址</label>
       <input

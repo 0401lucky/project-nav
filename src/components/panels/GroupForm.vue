@@ -65,7 +65,7 @@ async function remove(deleteBookmarks: boolean): Promise<void> {
 </script>
 
 <template>
-  <form class="form" @submit.prevent="save" @keydown.enter.prevent="save">
+  <form class="form" @submit.prevent="save">
     <div class="field">
       <label class="field__label" for="grp-name">分组名</label>
       <input id="grp-name" v-model="name" class="input" type="text" placeholder="比如「开发工具」" />

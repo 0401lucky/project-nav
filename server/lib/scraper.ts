@@ -86,7 +86,27 @@ async function readBoundedText(
     pos += take
     if (pos >= total) break
   }
-  return new TextDecoder('utf-8').decode(merged)
+  return decodeHtml(merged, resp.headers.get('content-type'))
+}
+
+/**
+ * 先认响应头的 charset，再认页面开头的 <meta> 声明，都没有才当 UTF-8。
+ * 不少中文老站是 GBK/GB2312，写死 UTF-8 会让标题变成乱码。
+ */
+function decodeHtml(bytes: Uint8Array, contentType: string | null): string {
+  // 按 HTML 规范只预扫前 1024 字节；latin1 逐字节映射，扫 ASCII 声明不会被多字节编码干扰
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, 1024))
+  const label = charsetOf(contentType ?? '') ?? charsetOf(head) ?? 'utf-8'
+  try {
+    return new TextDecoder(label).decode(bytes)
+  } catch {
+    // 不认识的编码名
+    return new TextDecoder('utf-8').decode(bytes)
+  }
+}
+
+function charsetOf(text: string): string | undefined {
+  return /charset\s*=\s*["']?\s*([\w-]+)/i.exec(text)?.[1]
 }
 
 export function extractMeta(

@@ -10,6 +10,15 @@ const loaded = ref(false)
 
 const current = computed(() => settings.currentWallpaper)
 
+/** 默认源：有横版就用横版，否则就是选中项本身（比如没有配对的竖版上传图） */
+const base = computed(() => settings.landscapeWallpaper ?? current.value)
+
+/** 竖屏专用源：只在竖版与默认源不是同一张时才需要 */
+const portrait = computed(() => {
+  const candidate = settings.portraitWallpaper
+  return candidate !== null && candidate.id !== base.value?.id ? candidate : null
+})
+
 watch(
   () => current.value?.id,
   () => {
@@ -18,7 +27,7 @@ watch(
 )
 
 /** 档位缺失（脏数据）时只留 LQIP，不发出坏请求 */
-const hasTiers = computed(() => (current.value?.widths.length ?? 0) > 0)
+const hasTiers = computed(() => (base.value?.widths.length ?? 0) > 0)
 
 function sortedWidths(wallpaper: Wallpaper): number[] {
   return [...wallpaper.widths].sort((a, b) => b - a)
@@ -31,18 +40,16 @@ function srcsetOf(wallpaper: Wallpaper, format: 'avif' | 'webp'): string {
     .join(', ')
 }
 
-/** <img> 的兜底用最小档 webp：不支持 avif 的浏览器也拿得到图 */
+/** <img> 的兜底用最小档 webp：只有不认识 <source> 的浏览器才会用到 */
 const fallbackSrc = computed(() => {
-  const wallpaper = current.value
+  const wallpaper = base.value
   if (wallpaper === null || wallpaper.widths.length === 0) return ''
   const smallest = Math.min(...wallpaper.widths)
   return `/wallpapers/${wallpaper.id}-${smallest}.webp`
 })
 
 const lqipStyle = computed(() =>
-  current.value === null
-    ? {}
-    : { backgroundImage: `url(/wallpapers/${current.value.id}-lqip.webp)` },
+  base.value === null ? {} : { backgroundImage: `url(/wallpapers/${base.value.id}-lqip.webp)` },
 )
 </script>
 
@@ -50,34 +57,25 @@ const lqipStyle = computed(() =>
   <div class="wallpaper">
     <div class="wallpaper__lqip" :style="lqipStyle" aria-hidden="true" />
 
-    <picture v-if="hasTiers">
+    <picture v-if="base !== null && hasTiers">
       <!-- 竖版源放在前面：媒体查询命中时优先于后面的默认源 -->
       <source
-        v-if="settings.portraitWallpaper"
+        v-if="portrait"
         media="(orientation: portrait)"
         type="image/avif"
-        :srcset="srcsetOf(settings.portraitWallpaper, 'avif')"
+        :srcset="srcsetOf(portrait, 'avif')"
         sizes="100vw"
       />
       <source
-        v-if="settings.portraitWallpaper"
+        v-if="portrait"
         media="(orientation: portrait)"
         type="image/webp"
-        :srcset="srcsetOf(settings.portraitWallpaper, 'webp')"
+        :srcset="srcsetOf(portrait, 'webp')"
         sizes="100vw"
       />
-      <source
-        v-if="settings.landscapeWallpaper"
-        type="image/avif"
-        :srcset="srcsetOf(settings.landscapeWallpaper, 'avif')"
-        sizes="100vw"
-      />
-      <source
-        v-if="settings.landscapeWallpaper"
-        type="image/webp"
-        :srcset="srcsetOf(settings.landscapeWallpaper, 'webp')"
-        sizes="100vw"
-      />
+      <!-- 默认源必须始终存在：<img> 只有兜底 src、没有 srcset，落到它就只剩最小档 -->
+      <source type="image/avif" :srcset="srcsetOf(base, 'avif')" sizes="100vw" />
+      <source type="image/webp" :srcset="srcsetOf(base, 'webp')" sizes="100vw" />
       <img
         class="wallpaper__img"
         :class="{ 'is-loaded': loaded }"

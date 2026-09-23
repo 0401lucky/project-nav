@@ -84,6 +84,27 @@ describe('writeWallpaperVariants', () => {
     const lqip = await sharp(join(deps.paths.wallpapersDir, 'test-1-lqip.webp')).metadata()
     assert.equal(lqip.width, 32)
   })
+
+  it('按 EXIF 方向摆正：手机竖拍（像素横存 + Orientation=6）按竖图处理', async () => {
+    const deps = tempDeps()
+    const phoneShot = await sharp({
+      create: { width: 400, height: 300, channels: 3, background: '#224466' },
+    })
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer()
+
+    const { widths, orientation } = await writeWallpaperVariants(
+      phoneShot,
+      deps.paths.wallpapersDir,
+      'phone',
+    )
+
+    assert.equal(orientation, 'portrait')
+    assert.deepEqual(widths, [300, 150])
+    const full = await sharp(join(deps.paths.wallpapersDir, 'phone-300.webp')).metadata()
+    assert.deepEqual([full.width, full.height], [300, 400])
+  })
 })
 
 describe('内置壁纸清单同步', () => {

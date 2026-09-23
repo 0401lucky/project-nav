@@ -9,7 +9,7 @@
 import { computed, ref } from 'vue'
 import { useDataStore } from '@/stores/data'
 import type { Bookmark, Group } from '@/types'
-import { dropIndexFor } from './drag'
+import { dropIndexFor, planDrop } from './drag'
 
 type DragKind = 'bookmark' | 'group'
 
@@ -54,9 +54,12 @@ export function useDrag() {
 
   function overBookmark(event: DragEvent, groupId: string, index: number): void {
     if (!isDraggingBookmark.value) return
+    // 不拦住的话会冒泡到分组面板的 overGroupBody，落点被改写成「末尾」
+    event.stopPropagation()
     const rect = (event.currentTarget as HTMLElement | null)?.getBoundingClientRect()
     if (rect === undefined) return
-    target.value = { groupId, index: dropIndexFor(rect, event.clientY, index) }
+    // 卡片是横排网格，按左右半边判断前后
+    target.value = { groupId, index: dropIndexFor(rect.left, rect.width, event.clientX, index) }
   }
 
   /** 指针落在分组面板空白处：放到该分组末尾 */
@@ -69,66 +72,50 @@ export function useDrag() {
     if (!isDraggingGroup.value) return
     const rect = (event.currentTarget as HTMLElement | null)?.getBoundingClientRect()
     if (rect === undefined) return
-    target.value = { groupId: '__groups__', index: dropIndexFor(rect, event.clientY, index) }
+    target.value = {
+      groupId: '__groups__',
+      index: dropIndexFor(rect.top, rect.height, event.clientY, index),
+    }
   }
+
+  // drop 会从书签格子一路冒泡到分组格子，两个 drop 处理器都会被调用。
+  // 必须先认领类型再清状态：若不是自己的拖拽就原样放过，留给外层处理。
 
   async function dropBookmark(): Promise<void> {
     const source = dragging.value
     const drop = target.value
+    if (source?.kind !== 'bookmark') return
     dragging.value = null
     target.value = null
-    if (source === null || drop === null || source.kind !== 'bookmark') return
+    if (drop === null) return
 
     const group = data.byGroup.find((entry) => entry.group.id === drop.groupId)
     if (group === undefined) return
 
-    const currentIds = group.bookmarks.map((item) => item.id)
-    const originalIndex = currentIds.indexOf(source.id)
-    // 目标分组的顺序先摘掉被拖的那条，再按落点插回去
-    const baseIds = currentIds.filter((id) => id !== source.id)
-
-    let insertAt = drop.index === -1 ? baseIds.length : drop.index
-    // drop.index 是对「还含被拖项」的列表算出来的，摘掉之后同一锚点要前移一位
-    if (originalIndex !== -1 && originalIndex < insertAt) insertAt -= 1
-    insertAt = Math.max(0, Math.min(insertAt, baseIds.length))
-
-    const next = [...baseIds]
-    next.splice(insertAt, 0, source.id)
-
-    if (currentIds.length === next.length && currentIds.every((id, index) => id === next[index])) {
-      return // 落回原位，不必打扰服务端
-    }
-
-    if (originalIndex === -1) {
-      // 跨组：服务端会把 groupId 一起改掉
-      await data.moveBookmark(source.id, drop.groupId, insertAt)
-      return
-    }
+    const next = planDrop(
+      group.bookmarks.map((item) => item.id),
+      source.id,
+      drop.index,
+    )
+    if (next === null) return // 落回原位，不必打扰服务端
+    // 跨组时 next 里含移入项，服务端会把它的 groupId 一起改掉
     await data.applyBookmarkOrder(drop.groupId, next)
   }
 
   async function dropGroup(): Promise<void> {
     const source = dragging.value
     const drop = target.value
+    if (source?.kind !== 'group') return
     dragging.value = null
     target.value = null
-    if (source === null || drop === null || source.kind !== 'group') return
+    if (drop === null) return
 
-    const currentIds = data.groups.map((group) => group.id)
-    const originalIndex = currentIds.indexOf(source.id)
-    if (originalIndex === -1) return
-
-    const baseIds = currentIds.filter((id) => id !== source.id)
-    let insertAt = drop.index === -1 ? baseIds.length : drop.index
-    if (originalIndex < insertAt) insertAt -= 1
-    insertAt = Math.max(0, Math.min(insertAt, baseIds.length))
-
-    const next = [...baseIds]
-    next.splice(insertAt, 0, source.id)
-
-    if (currentIds.length === next.length && currentIds.every((id, index) => id === next[index])) {
-      return
-    }
+    const next = planDrop(
+      data.groups.map((group) => group.id),
+      source.id,
+      drop.index,
+    )
+    if (next === null) return
     await data.applyGroupOrder(next)
   }
 
@@ -143,13 +130,13 @@ export function useDrag() {
     return drop !== null && drop.groupId === groupId && drop.index === index && isDraggingBookmark.value
   }
 
-  /** 拖到分组末尾时，最后一项之后要不要显示落点线 */
+  /** 拖到分组末尾（空白处，或最后一项的后半边）时高亮整块面板 */
   function isDropAtEnd(groupId: string, count: number): boolean {
     const drop = target.value
     return (
       drop !== null &&
       drop.groupId === groupId &&
-      drop.index === -1 &&
+      (drop.index === -1 || drop.index >= count) &&
       count > 0 &&
       isDraggingBookmark.value
     )

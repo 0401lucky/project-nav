@@ -8,7 +8,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { ApiError, UnauthorizedError, api } from '@/api/client'
 import type { BookmarkInput, BookmarkPatch, GroupInput } from '@/api/client'
-import { applyOrderWithin } from '@/composables/drag'
+import { applyOrderWithin, moveToGroupEnd, placeUpdated } from '@/composables/drag'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import type { Bookmark, BootstrapResponse, Group } from '@/types'
@@ -83,24 +83,6 @@ export const useDataStore = defineStore('data', () => {
 
   function groupIdsInOrder(): string[] {
     return groups.value.map((group) => group.id)
-  }
-
-  function bookmarkIdsInGroup(groupId: string): string[] {
-    return bookmarks.value.filter((item) => item.groupId === groupId).map((item) => item.id)
-  }
-
-  /** 把书签放到其分组内末尾的位置（全局数组里插在该分组最后一条之后） */
-  function moveToGroupEnd(list: Bookmark[], bookmark: Bookmark): Bookmark[] {
-    const without = list.filter((item) => item.id !== bookmark.id)
-    let insertAt = without.length
-    for (let i = without.length - 1; i >= 0; i -= 1) {
-      if (without[i]!.groupId === bookmark.groupId) {
-        insertAt = i + 1
-        break
-      }
-    }
-    without.splice(insertAt, 0, bookmark)
-    return without
   }
 
   // ---------------- 分组 ----------------
@@ -214,14 +196,11 @@ export const useDataStore = defineStore('data', () => {
       groupId: patch.groupId ?? current.groupId,
       updatedAt: Date.now(),
     }
-    bookmarks.value =
-      optimistic.groupId === current.groupId
-        ? bookmarks.value.map((item) => (item.id === id ? optimistic : item))
-        : moveToGroupEnd(bookmarks.value, optimistic)
+    bookmarks.value = placeUpdated(bookmarks.value, optimistic)
 
     try {
       const updated = await api.updateBookmark(id, patch)
-      bookmarks.value = moveToGroupEnd(bookmarks.value, updated)
+      bookmarks.value = placeUpdated(bookmarks.value, updated)
       return true
     } catch (error) {
       handleFailure(error, snap)
@@ -256,21 +235,6 @@ export const useDataStore = defineStore('data', () => {
     }
   }
 
-  /**
-   * 跨组移动：把书签插到目标组的 index 位置。
-   * 服务端只接受「目标组的完整顺序」，所以这里自己拼出那份完整列表。
-   */
-  async function moveBookmark(id: string, groupId: string, index: number): Promise<boolean> {
-    const moving = bookmarks.value.find((item) => item.id === id)
-    if (moving === undefined) return false
-
-    const targetIds = bookmarkIdsInGroup(groupId).filter((item) => item !== id)
-    const clamped = Math.max(0, Math.min(index, targetIds.length))
-    targetIds.splice(clamped, 0, id)
-
-    return await applyBookmarkOrder(groupId, targetIds)
-  }
-
   return {
     groups,
     bookmarks,
@@ -288,8 +252,6 @@ export const useDataStore = defineStore('data', () => {
     updateBookmark,
     removeBookmark,
     applyBookmarkOrder,
-    moveBookmark,
-    bookmarkIdsInGroup,
     groupIdsInOrder,
   }
 })

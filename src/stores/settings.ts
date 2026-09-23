@@ -48,16 +48,10 @@ export const useSettingsStore = defineStore('settings', () => {
     )
   }
 
-  /** 有配对的另一方向时才有值，没有就别渲染那条 <source> */
-  const portraitWallpaper = computed(() => {
-    const portrait = atOrientation('portrait')
-    return portrait?.id === currentWallpaper.value?.id ? null : portrait
-  })
+  /** 各方向实际要显示的那张；选中项没有该方向的配对时为 null */
+  const portraitWallpaper = computed(() => atOrientation('portrait'))
 
-  const landscapeWallpaper = computed(() => {
-    const landscape = atOrientation('landscape')
-    return landscape?.id === currentWallpaper.value?.id ? null : landscape
-  })
+  const landscapeWallpaper = computed(() => atOrientation('landscape'))
 
   const applyBootstrap = (payload: BootstrapResponse): void => {
     applySettings(payload.settings)

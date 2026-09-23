@@ -85,6 +85,51 @@ describe('fetchPage', () => {
     assert.ok(page.errorMessage)
     assert.equal(page.finalUrl, 'http://127.0.0.1:1/')
   })
+
+  // 「中文标题」的 GBK 字节
+  const GBK_TITLE = Buffer.from('d6d0cec4b1eacce2', 'hex')
+
+  it('按 Content-Type 里的 charset 解码 GBK 页面', async () => {
+    await withServer(
+      (res) => {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=GBK' })
+        res.end(Buffer.concat([Buffer.from('<html><head><title>'), GBK_TITLE, Buffer.from('</title></head></html>')]))
+      },
+      async (base) => {
+        assert.equal((await fetchPage(`${base}/`)).title, '中文标题')
+      },
+    )
+  })
+
+  it('响应头没写 charset 时，按页面里的 <meta http-equiv> 声明解码', async () => {
+    await withServer(
+      (res) => {
+        res.writeHead(200, { 'Content-Type': 'text/html' })
+        res.end(
+          Buffer.concat([
+            Buffer.from('<html><head><meta http-equiv="Content-Type" content="text/html; charset=gb2312"><title>'),
+            GBK_TITLE,
+            Buffer.from('</title></head></html>'),
+          ]),
+        )
+      },
+      async (base) => {
+        assert.equal((await fetchPage(`${base}/`)).title, '中文标题')
+      },
+    )
+  })
+
+  it('不认识的 charset 退回 UTF-8，不抛异常', async () => {
+    await withServer(
+      (res) => {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=no-such-charset' })
+        res.end('<html><head><title>标题</title></head></html>')
+      },
+      async (base) => {
+        assert.equal((await fetchPage(`${base}/`)).title, '标题')
+      },
+    )
+  })
 })
 
 describe('POST /api/meta', () => {

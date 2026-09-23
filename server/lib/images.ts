@@ -63,12 +63,13 @@ export async function writeWallpaperVariants(
   outDir: string,
   id: string,
 ): Promise<EncodedWallpaper> {
-  const meta = await sharp(source).metadata()
-  if (meta.width === undefined || meta.height === undefined) {
+  // 取按 EXIF 摆正后的尺寸：手机竖拍的照片像素是横着存的
+  const { width: nativeWidth, height: nativeHeight } = (await sharp(source).metadata()).autoOrient
+  if (nativeWidth === undefined || nativeHeight === undefined) {
     throw new Error('无法读取图片尺寸')
   }
 
-  const widths = planTiers(meta.width)
+  const widths = planTiers(nativeWidth)
   const files: WallpaperFile[] = []
 
   for (const width of widths) {
@@ -80,12 +81,20 @@ export async function writeWallpaperVariants(
     }
   }
 
-  const lqip = await sharp(source).resize(LQIP_WIDTH).blur(8).webp({ quality: 40 }).toBuffer()
+  const lqip = await oriented(source).resize(LQIP_WIDTH).blur(8).webp({ quality: 40 }).toBuffer()
   const lqipName = `${id}-lqip.webp`
   await writeFile(join(outDir, lqipName), lqip)
   files.push({ name: lqipName, width: LQIP_WIDTH, format: 'webp', bytes: lqip.length })
 
-  return { files, widths, orientation: orientationOf(meta.width, meta.height) }
+  return { files, widths, orientation: orientationOf(nativeWidth, nativeHeight) }
+}
+
+/**
+ * 所有转码都从这里进：按 EXIF Orientation 摆正像素。
+ * 输出的 avif/webp 不带 EXIF，不摆正的话浏览器也不会再替我们转。
+ */
+function oriented(source: Buffer): ReturnType<typeof sharp> {
+  return sharp(source, { autoOrient: true })
 }
 
 /** 按已知档位宽度逐个删文件，不用通配：文件名完全由 id 和宽度决定 */
@@ -131,8 +140,8 @@ async function encodeWithinBudget(
   for (const quality of ladder) {
     result =
       format === 'avif'
-        ? await sharp(source).resize(width).avif({ quality, effort: 4 }).toBuffer()
-        : await sharp(source).resize(width).webp({ quality }).toBuffer()
+        ? await oriented(source).resize(width).avif({ quality, effort: 4 }).toBuffer()
+        : await oriented(source).resize(width).webp({ quality }).toBuffer()
     if (result.length <= MAX_WALLPAPER_BYTES) break
   }
 

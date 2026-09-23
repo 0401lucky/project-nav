@@ -1,5 +1,17 @@
+<script lang="ts">
+import { ref } from 'vue'
+
+/**
+ * 同一时刻只开一个卡片菜单，所以开关状态放在模块级、所有卡片共享。
+ * 打开菜单的点击必须 stopPropagation（否则冒泡到 document 会立刻被收起），
+ * 这也让「点别处收起」对另一张卡片的「更多」按钮失效，只能靠这份共享状态互斥。
+ */
+const openMenuId = ref<string | null>(null)
+</script>
+
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+// ref 已由上面的普通 <script> 导入，两块同处一个模块作用域，重复导入会报错
+import { computed, onBeforeUnmount, watch } from 'vue'
 import FallbackIcon from '@/components/ui/FallbackIcon.vue'
 import { splitByHighlights } from '@/composables/filter'
 import type { HighlightRange } from '@/composables/filter'
@@ -31,7 +43,7 @@ const iconSrc = computed(() => `/icons/${props.bookmark.id}.webp?v=${props.bookm
 
 const titleParts = computed(() => splitByHighlights(props.bookmark.title, props.highlight ?? []))
 
-const menuOpen = ref(false)
+const menuOpen = computed(() => openMenuId.value === props.bookmark.id)
 const moreButton = ref<HTMLElement | null>(null)
 /** fixed 定位相对视口，直接存最终坐标 */
 const anchor = ref({ top: 0, right: 0 })
@@ -53,11 +65,11 @@ function openMenu(event?: MouseEvent): void {
     top: rect.bottom + 6,
     right: Math.max(8, window.innerWidth - rect.right),
   }
-  menuOpen.value = true
+  openMenuId.value = props.bookmark.id
 }
 
 function close(): void {
-  menuOpen.value = false
+  if (menuOpen.value) openMenuId.value = null
 }
 
 function choose(action: () => void): void {
@@ -70,20 +82,31 @@ function dismiss(): void {
   close()
 }
 
+/** 挂在 document 上，先于 window 上的全局快捷键收到：Esc 只收菜单，不再清空搜索 */
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape') return
+  event.stopPropagation()
+  close()
+}
+
 watch(menuOpen, (open) => {
   if (open) {
     document.addEventListener('click', dismiss)
+    document.addEventListener('keydown', onKeydown)
     window.addEventListener('scroll', dismiss, { passive: true, capture: true })
     window.addEventListener('resize', dismiss)
   } else {
     document.removeEventListener('click', dismiss)
+    document.removeEventListener('keydown', onKeydown)
     window.removeEventListener('scroll', dismiss, { capture: true })
     window.removeEventListener('resize', dismiss)
   }
 })
 
 onBeforeUnmount(() => {
+  close()
   document.removeEventListener('click', dismiss)
+  document.removeEventListener('keydown', onKeydown)
   window.removeEventListener('scroll', dismiss, { capture: true })
   window.removeEventListener('resize', dismiss)
 })

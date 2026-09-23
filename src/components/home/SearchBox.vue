@@ -33,6 +33,14 @@ function onEscape(event: KeyboardEvent): void {
   clear()
 }
 
+function onEnter(event: KeyboardEvent): void {
+  // 输入法组词时的回车是「上屏」，不是提交。
+  // Safari 的上屏回车晚于 compositionend、isComposing 已是 false，只能靠 keyCode 229 识别
+  if (event.isComposing || event.keyCode === 229) return
+  event.preventDefault()
+  submit()
+}
+
 function submit(): void {
   const term = query.value.trim()
   if (term === '') return
@@ -80,7 +88,7 @@ defineExpose({ focus })
         aria-label="搜索书签"
         autocomplete="off"
         spellcheck="false"
-        @keydown.enter.prevent="submit"
+        @keydown.enter="onEnter"
         @keydown.esc.prevent="onEscape"
       />
 
