@@ -8,6 +8,7 @@ import Wallpaper from '@/components/home/Wallpaper.vue'
 import LoginScreen from '@/components/login/LoginScreen.vue'
 import BookmarkForm from '@/components/panels/BookmarkForm.vue'
 import GroupForm from '@/components/panels/GroupForm.vue'
+import SettingsPanel from '@/components/panels/SettingsPanel.vue'
 import SlidePanel from '@/components/panels/SlidePanel.vue'
 import Toast from '@/components/ui/Toast.vue'
 import { useFilter } from '@/composables/useFilter'
@@ -32,7 +33,13 @@ const searchBox = ref<InstanceType<typeof SearchBox> | null>(null)
 
 // ---------------- 面板 ----------------
 
-type PanelKind = 'add-bookmark' | 'edit-bookmark' | 'add-group' | 'edit-group' | 'move-bookmark'
+type PanelKind =
+  | 'add-bookmark'
+  | 'edit-bookmark'
+  | 'add-group'
+  | 'edit-group'
+  | 'move-bookmark'
+  | 'settings'
 
 const panel = ref<PanelKind | null>(null)
 const activeBookmark = ref<Bookmark | null>(null)
@@ -46,6 +53,7 @@ const PANEL_TITLES: Record<PanelKind, string> = {
   'add-group': '新建分组',
   'edit-group': '编辑分组',
   'move-bookmark': '移到分组',
+  settings: '设置',
 }
 
 const panelTitle = computed(() => (panel.value === null ? '' : PANEL_TITLES[panel.value]))
@@ -122,11 +130,15 @@ watch(
 const booting = ref(true)
 const bootError = ref<string | null>(null)
 
+async function loadAll(): Promise<void> {
+  const payload = await api.bootstrap()
+  data.applyBootstrap(payload)
+  settings.applyBootstrap(payload)
+}
+
 async function bootstrap(): Promise<void> {
   try {
-    const payload = await api.bootstrap()
-    data.applyBootstrap(payload)
-    settings.applyBootstrap(payload)
+    await loadAll()
     auth.markLoggedIn()
     bootError.value = null
     openPrefilledAdd()
@@ -139,6 +151,23 @@ async function bootstrap(): Promise<void> {
     }
     bootError.value = '无法连接到服务器，请确认服务已启动'
   }
+}
+
+/** 导入之后要把分组与书签重新拉一遍 */
+async function reload(): Promise<void> {
+  try {
+    await loadAll()
+  } catch (thrown) {
+    if (thrown instanceof UnauthorizedError) auth.markUnauthorized()
+    else toast.error('刷新数据失败，请重试')
+  }
+}
+
+async function logout(): Promise<void> {
+  closePanel()
+  await auth.logout()
+  data.reset()
+  settings.reset()
 }
 
 /**
@@ -190,11 +219,6 @@ onMounted(async () => {
 
 /** 强调色写到根节点，全站取色都从这里来 */
 const rootStyle = computed(() => ({ '--accent': settings.accent }))
-
-function onTopBarSettings(): void {
-  // 设置面板在阶段 8 接入
-  toast.show('设置面板在下一步接入')
-}
 </script>
 
 <template>
@@ -207,7 +231,7 @@ function onTopBarSettings(): void {
       <LoginScreen v-else-if="!auth.loggedIn" />
 
       <template v-else>
-        <TopBar @add="addBookmarkTo()" @settings="onTopBarSettings" />
+        <TopBar @add="addBookmarkTo()" @settings="panel = 'settings'" />
 
         <!-- 搜索框放在不滚动的区域，滚动网格时它一直在 -->
         <div class="app__search">
@@ -246,6 +270,8 @@ function onTopBarSettings(): void {
         @saved="closePanel"
         @cancel="closePanel"
       />
+
+      <SettingsPanel v-else-if="panel === 'settings'" @logout="logout" @imported="reload" />
 
       <div v-else-if="panel === 'move-bookmark'" class="field">
         <label class="field__label" for="mv-group">移到哪个分组</label>

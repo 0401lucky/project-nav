@@ -6,7 +6,7 @@
 
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { ApiError, UnauthorizedError, api } from '@/api/client'
+import { UnauthorizedError, api, describeError } from '@/api/client'
 import type { BookmarkInput, BookmarkPatch, GroupInput } from '@/api/client'
 import { applyOrderWithin, moveToGroupEnd, placeUpdated } from '@/composables/drag'
 import { useToast } from '@/composables/useToast'
@@ -66,12 +66,6 @@ export const useDataStore = defineStore('data', () => {
   function restore(snap: Snapshot): void {
     groups.value = snap.groups
     bookmarks.value = snap.bookmarks
-  }
-
-  function describeError(error: unknown): string {
-    if (error instanceof ApiError) return error.detail ?? error.message
-    if (error instanceof UnauthorizedError) return '登录已失效，请重新登录'
-    return '操作失败，请稍后再试'
   }
 
   /** 失败时统一收尾：回滚 + 提示 + 会话失效就整站退回登录屏 */

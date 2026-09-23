@@ -6,8 +6,10 @@ import type {
   Bookmark,
   BootstrapResponse,
   Group,
+  ImportResult,
   MetaResponse,
   Settings,
+  Wallpaper,
 } from '@/types'
 
 export class UnauthorizedError extends Error {
@@ -78,6 +80,13 @@ async function readErrorBody(response: Response): Promise<ApiErrorBody | null> {
   }
 }
 
+/** 把任意异常翻成给用户看的一句话。两个 store 共用，避免各写一份措辞不同的版本。 */
+export function describeError(error: unknown): string {
+  if (error instanceof ApiError) return error.detail ?? error.message
+  if (error instanceof UnauthorizedError) return '登录已失效，请重新登录'
+  return '操作失败，请稍后再试'
+}
+
 export interface BookmarkInput {
   groupId: string
   title: string
@@ -123,4 +132,21 @@ export const api = {
   settings: () => request<Settings>('GET', '/api/settings'),
   patchSettings: (patch: Partial<Settings>) =>
     request<Settings>('PATCH', '/api/settings', patch),
+
+  uploadWallpaper: (file: File) => {
+    const form = new FormData()
+    form.set('file', file)
+    return request<Wallpaper>('POST', '/api/wallpapers', form)
+  },
+  deleteWallpaper: (id: string) =>
+    request<void>('DELETE', `/api/wallpapers/${encodeURIComponent(id)}`),
+
+  importHtml: (file: File) => {
+    const form = new FormData()
+    form.set('file', file)
+    return request<ImportResult>('POST', '/api/import/html', form)
+  },
+  /** 旧站 JSON 直接当请求体发，服务端同时接受裸数组与 { items: [...] } */
+  importLegacy: (payload: unknown) =>
+    request<ImportResult>('POST', '/api/import/legacy', payload),
 }

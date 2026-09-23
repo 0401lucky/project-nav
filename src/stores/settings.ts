@@ -6,6 +6,9 @@
 
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { UnauthorizedError, api, describeError } from '@/api/client'
+import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
 import type { BootstrapResponse, SearchEngine, Settings, Wallpaper, WallpaperOrientation } from '@/types'
 
 /** 与 scripts/build-wallpapers.ts 写出的 manifest.json 对应 */
@@ -28,6 +31,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const bookmarkletToken = ref('')
 
   const wallpapers = ref<Wallpaper[]>([])
+
+  const toast = useToast()
 
   /** 用户选中的那一行；没选过或已被删时回落到第一张，首屏就不会没有背景 */
   const currentWallpaper = computed<Wallpaper | null>(() => {
@@ -98,6 +103,94 @@ export const useSettingsStore = defineStore('settings', () => {
     bookmarkletToken.value = ''
   }
 
+  // ---------------- 写操作 ----------------
+
+  /** 上传壁纸期间置 true，面板据此禁用按钮 */
+  const saving = ref(false)
+
+  interface SettingsSnapshot {
+    wallpaper: string
+    searchEngine: SearchEngine
+    accent: string
+  }
+
+  function snapshot(): SettingsSnapshot {
+    return {
+      wallpaper: wallpaper.value,
+      searchEngine: { ...searchEngine.value },
+      accent: accent.value,
+    }
+  }
+
+  function restore(snap: SettingsSnapshot): void {
+    wallpaper.value = snap.wallpaper
+    searchEngine.value = snap.searchEngine
+    accent.value = snap.accent
+  }
+
+  function reportFailure(error: unknown): void {
+    if (error instanceof UnauthorizedError) useAuthStore().markUnauthorized()
+    toast.error(describeError(error))
+  }
+
+  /** 乐观改设置，失败回滚并以服务端返回为准覆盖本地 */
+  async function patchSettings(change: Partial<Settings>): Promise<boolean> {
+    const snap = snapshot()
+    if (change.wallpaper !== undefined) wallpaper.value = change.wallpaper
+    if (change.searchEngine !== undefined) searchEngine.value = { ...change.searchEngine }
+    if (change.accent !== undefined) accent.value = change.accent
+
+    try {
+      applySettings(await api.patchSettings(change))
+      return true
+    } catch (error) {
+      restore(snap)
+      reportFailure(error)
+      return false
+    }
+  }
+
+  const saveSearchEngine = (engine: SearchEngine) => patchSettings({ searchEngine: engine })
+
+  const saveAccent = (color: string) => patchSettings({ accent: color })
+
+  const selectWallpaper = (id: string) => patchSettings({ wallpaper: id })
+
+  async function uploadWallpaper(file: File): Promise<boolean> {
+    saving.value = true
+    try {
+      const created = await api.uploadWallpaper(file)
+      wallpapers.value = [...wallpapers.value, created]
+      // 上传完直接换过去，省得用户再点一次
+      await patchSettings({ wallpaper: created.id })
+      return true
+    } catch (error) {
+      reportFailure(error)
+      return false
+    } finally {
+      saving.value = false
+    }
+  }
+
+  async function removeWallpaper(id: string): Promise<boolean> {
+    const before = wallpapers.value
+    const wasSelected = wallpaper.value === id
+
+    wallpapers.value = wallpapers.value.filter((item) => item.id !== id)
+    // 服务端删掉当前壁纸时会把选择清空，本地跟着做，免得选中一个不存在的 id
+    if (wasSelected) wallpaper.value = ''
+
+    try {
+      await api.deleteWallpaper(id)
+      return true
+    } catch (error) {
+      wallpapers.value = before
+      if (wasSelected) wallpaper.value = id
+      reportFailure(error)
+      return false
+    }
+  }
+
   return {
     wallpaper,
     searchEngine,
@@ -107,9 +200,15 @@ export const useSettingsStore = defineStore('settings', () => {
     currentWallpaper,
     portraitWallpaper,
     landscapeWallpaper,
+    saving,
     applyBootstrap,
     applySettings,
     loadPublicManifest,
     reset,
+    saveSearchEngine,
+    saveAccent,
+    selectWallpaper,
+    uploadWallpaper,
+    removeWallpaper,
   }
 })
