@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import GroupPanel from '@/components/home/GroupPanel.vue'
+import { useFilter } from '@/composables/useFilter'
 import { useDataStore } from '@/stores/data'
 
 const data = useDataStore()
+const { visibleByGroup } = useFilter()
 </script>
 
 <template>
@@ -12,7 +14,7 @@ const data = useDataStore()
   </div>
 
   <div v-else class="panels">
-    <GroupPanel v-for="entry in data.byGroup" :key="entry.group.id" :entry="entry" />
+    <GroupPanel v-for="entry in visibleByGroup" :key="entry.group.id" :entry="entry" />
   </div>
 </template>
 

@@ -2,9 +2,12 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { UnauthorizedError, api } from '@/api/client'
 import BookmarkGrid from '@/components/home/BookmarkGrid.vue'
+import SearchBox from '@/components/home/SearchBox.vue'
 import TopBar from '@/components/home/TopBar.vue'
 import Wallpaper from '@/components/home/Wallpaper.vue'
 import LoginScreen from '@/components/login/LoginScreen.vue'
+import { useFilter } from '@/composables/useFilter'
+import { useHotkeys } from '@/composables/useHotkeys'
 import { useAuthStore } from '@/stores/auth'
 import { useDataStore } from '@/stores/data'
 import { useSettingsStore } from '@/stores/settings'
@@ -12,6 +15,17 @@ import { useSettingsStore } from '@/stores/settings'
 const auth = useAuthStore()
 const data = useDataStore()
 const settings = useSettingsStore()
+const { query: searchQuery, clear: clearSearch } = useFilter()
+
+const searchBox = ref<InstanceType<typeof SearchBox> | null>(null)
+
+useHotkeys({
+  focusSearch: () => searchBox.value?.focus(),
+  escape: () => {
+    // 阶段 7 起这里会先尝试关闭已打开的面板，再处理搜索
+    if (searchQuery.value !== '') clearSearch()
+  },
+})
 
 const booting = ref(true)
 const bootError = ref<string | null>(null)
@@ -76,6 +90,11 @@ const rootStyle = computed(() => ({ '--accent': settings.accent }))
         <!-- TopBar 的 add / settings 事件由阶段 7、8 的面板接上 -->
         <TopBar />
 
+        <!-- 搜索框放在不滚动的区域，滚动网格时它一直在 -->
+        <div class="app__search">
+          <SearchBox ref="searchBox" />
+        </div>
+
         <main class="app__main">
           <!-- 数据没到之前不渲染网格，避免空状态一闪而过 -->
           <BookmarkGrid v-if="data.loaded" />
@@ -92,6 +111,11 @@ const rootStyle = computed(() => ({ '--accent': settings.accent }))
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.app__search {
+  flex: 0 0 auto;
+  padding: 0 var(--page-x);
 }
 
 .app__main {

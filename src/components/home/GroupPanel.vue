@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import BookmarkCard from '@/components/home/BookmarkCard.vue'
+import { useFilter } from '@/composables/useFilter'
 import type { GroupWithBookmarks } from '@/stores/data'
 
 defineProps<{ entry: GroupWithBookmarks }>()
+
+// 高亮区间来自搜索，直接在这里取，省得把整张表 prop 透传下来
+const { result } = useFilter()
 </script>
 
 <template>
@@ -17,7 +21,7 @@ defineProps<{ entry: GroupWithBookmarks }>()
 
     <ul v-else class="panel__grid">
       <li v-for="bookmark in entry.bookmarks" :key="bookmark.id">
-        <BookmarkCard :bookmark="bookmark" />
+        <BookmarkCard :bookmark="bookmark" :highlight="result.highlights.get(bookmark.id)" />
       </li>
     </ul>
   </section>

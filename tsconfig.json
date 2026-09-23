@@ -21,5 +21,7 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "shared/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "shared/**/*.ts"],
+  // 前端测试文件跑在 node:test 里，属于 Node 环境，交给 tsconfig.server.json 检查
+  "exclude": ["src/**/*.test.ts"]
 }
