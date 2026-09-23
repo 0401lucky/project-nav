@@ -1,0 +1,22 @@
+# 一个进程、一个容器，不需要 Nginx：Node 同时托管前端产物与 API。
+# 用法：cp .env.example .env && docker compose up -d --build
+
+services:
+  nav:
+    build: .
+    image: personal-bookmark-nav:latest
+    restart: unless-stopped
+    ports:
+      # 宿主机端口取 .env 里的 PORT（默认 3000）；容器内固定 3000
+      - '${PORT:-3000}:3000'
+    env_file:
+      - .env
+    environment:
+      # 容器里就是生产环境：哈希资源长缓存、会话 Cookie 默认带 Secure
+      NODE_ENV: production
+      # 固定内部端口，避免 .env 里的 PORT 把容器内监听端口也改掉、和端口映射对不上
+      PORT: 3000
+      DATA_DIR: /app/data
+    volumes:
+      # 唯一需要备份的目录：SQLite、图标缓存、上传的壁纸
+      - ./data:/app/data

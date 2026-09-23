@@ -214,6 +214,8 @@ onBeforeUnmount(() => {
 }
 
 .card {
+  /* 悬停才出现的两个控件改为绝对定位，别占标题的宽度 */
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -234,10 +236,13 @@ onBeforeUnmount(() => {
 
 /* 拖拽手柄平时不占视觉重量，悬停才显形 */
 .card__handle {
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
-  width: 12px;
-  margin-left: -4px;
+  width: 11px;
   color: var(--text-3);
   opacity: 0;
   cursor: grab;
@@ -267,6 +272,8 @@ onBeforeUnmount(() => {
   -webkit-box-orient: vertical;
   overflow: hidden;
   flex: 1 1 auto;
+  /* 右侧常驻的菜单按钮位置，避免悬停时盖住标题末尾 */
+  padding-right: 22px;
   font-size: 13px;
   line-height: 1.35;
   word-break: break-word;
@@ -281,11 +288,14 @@ onBeforeUnmount(() => {
 }
 
 .card__more {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
   width: 24px;
   height: 24px;
-  flex: 0 0 auto;
   border-radius: 8px;
   color: var(--text-3);
   opacity: 0;
@@ -352,11 +362,15 @@ onBeforeUnmount(() => {
 
   /* 靠 hover 显形的按钮在触屏上永远点不到，必须常显 */
   .card__more {
-    position: absolute;
     top: 4px;
-    right: 4px;
+    transform: none;
     opacity: 1;
     background: rgb(0 0 0 / 0.35);
+  }
+
+  /* 竖排时按钮在右上角，标题不需要再让出右侧空间 */
+  .card__title {
+    padding-right: 0;
   }
 }
 </style>

@@ -1,0 +1,25 @@
+# 构建上下文里不需要的东西。node_modules 与 dist 由镜像内自己装/自己构建，
+# 源图（约 11MB）只用于本地生成壁纸，产物已经在 public/wallpapers 里了。
+node_modules
+dist
+dist-server
+data
+
+.git
+.gitignore
+.github
+
+# 开发流程工具，跟运行无关
+.trellis
+.claude
+.agents
+.codex
+.playwright-mcp
+test-results
+playwright-report
+
+assets/wallpapers-src
+
+*.log
+.env
+.env.local

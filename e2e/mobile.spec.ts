@@ -30,9 +30,12 @@ async function loginWithCards(page: Page): Promise<void> {
 
   const boot = (await (await page.request.get('/api/bootstrap')).json()) as {
     groups: { id: string }[]
-    bookmarks: unknown[]
+    bookmarks: { title: string }[]
   }
-  if (boot.bookmarks.length > 0) return
+
+  // 判断「是不是自己播的种」，而不是「库里有没有书签」：
+  // 别的规格可能先跑过并留下数据，只看条数会误判成已播种而跳过。
+  if (boot.bookmarks.some((item) => item.title === SEED_TITLES[0])) return
 
   const groupId = boot.groups[0]?.id
   if (groupId === undefined) throw new Error('库里连默认分组都没有')
@@ -74,9 +77,9 @@ test.describe('窄屏 390x844', () => {
 
     const box = await page.locator('.sheet').boundingBox()
     expect(box).not.toBeNull()
-    // 亚像素布局下拿到的可能是 389.99998，不能用精确相等
-    expect(box!.width).toBeGreaterThan(389)
-    expect(box!.width).toBeLessThanOrEqual(390)
+    // 亚像素布局下拿到 389.99998 或 390.00001 都正常，留一点余量
+    expect(box!.width).toBeGreaterThan(389.5)
+    expect(box!.width).toBeLessThan(390.5)
   })
 
   test('竖屏真的去加载竖版壁纸', async ({ page }) => {

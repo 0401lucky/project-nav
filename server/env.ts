@@ -5,7 +5,7 @@ export interface ServerConfig {
   sessionSecret: string
   port: number
   dataDir: string
-  /** 生产环境给会话 Cookie 加 Secure，由 NODE_ENV 推导 */
+  /** 生产环境给会话 Cookie 加 Secure */
   secureCookies: boolean
 }
 
@@ -38,8 +38,23 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): ServerConfi
     sessionSecret,
     port: parsePort(source.PORT),
     dataDir: (source.DATA_DIR ?? '').trim() || DEFAULT_DATA_DIR,
-    secureCookies: source.NODE_ENV === 'production',
+    secureCookies: resolveSecureCookies(source),
   }
+}
+
+/**
+ * 会话 Cookie 要不要加 Secure。
+ *
+ * 默认按 NODE_ENV 推导（生产加）。但这个默认值在内网纯 HTTP 自部署下会直接把
+ * 人锁在门外：带了 Secure 的 Cookie，浏览器在 http 下根本不会回传，
+ * 表现为「密码明明对了却一直跳回登录页」。docker-compose 里传了 NODE_ENV=production，
+ * 所以这里必须留一个显式开关。
+ */
+function resolveSecureCookies(source: NodeJS.ProcessEnv): boolean {
+  const raw = (source.COOKIE_SECURE ?? '').trim().toLowerCase()
+  if (raw === 'true' || raw === '1') return true
+  if (raw === 'false' || raw === '0') return false
+  return source.NODE_ENV === 'production'
 }
 
 function parsePort(raw: string | undefined): number {
