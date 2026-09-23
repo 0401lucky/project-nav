@@ -32,6 +32,12 @@ export interface Wallpaper {
   orientation: WallpaperOrientation
   /** 横竖配对：同一主题的横版与竖版共用此 id */
   pairId: string | null
+  /**
+   * 实际产出的档位宽度（从大到小），前端据此拼 srcset。
+   * 内置壁纸来自 manifest，上传壁纸来自服务端转码结果——宽度是每张图的实际属性，
+   * 不能在前端写死。
+   */
+  widths: number[]
 }
 
 export interface SearchEngine {

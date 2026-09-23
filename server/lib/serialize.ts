@@ -32,5 +32,17 @@ export function toWallpaper(row: WallpaperRow): Wallpaper {
     builtin: row.builtin === 1,
     orientation: row.orientation === 'portrait' ? 'portrait' : 'landscape',
     pairId: row.pair_id,
+    widths: parseWidths(row.widths),
+  }
+}
+
+/** 档位宽度存在 TEXT 列里，坏数据一律当空数组，不让前端拿到非法 srcset */
+export function parseWidths(raw: string): number[] {
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((value): value is number => typeof value === 'number' && value > 0)
+  } catch {
+    return []
   }
 }

@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { newId } from './lib/id.ts'
 import { SORT_STEP } from './lib/order.ts'
-import { count, execute } from './lib/query.ts'
+import { count, execute, queryAll } from './lib/query.ts'
 import { ensureSettingDefaults } from './lib/settings-store.ts'
 import type { Db } from './types.ts'
 
@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS wallpapers (
   builtin     INTEGER NOT NULL DEFAULT 0,
   orientation TEXT NOT NULL,
   pair_id     TEXT,
+  widths      TEXT NOT NULL DEFAULT '[]',
   created_at  INTEGER NOT NULL
 );
 
@@ -65,8 +66,26 @@ export function createDb(file: string): Db {
   db.exec('PRAGMA journal_mode = WAL')
   db.exec('PRAGMA foreign_keys = ON')
   db.exec(SCHEMA)
+  migrate(db)
   seedDefaults(db)
   return db
+}
+
+/**
+ * 给已存在的库补新列。CREATE TABLE IF NOT EXISTS 不会动老表，
+ * 所以新增列要显式加。没有迁移框架，一次一个判断就够。
+ */
+function migrate(db: Db): void {
+  ensureColumn(db, 'wallpapers', 'widths', "TEXT NOT NULL DEFAULT '[]'")
+}
+
+function ensureColumn(db: Db, table: string, column: string, definition: string): void {
+  if (tableColumns(db, table).includes(column)) return
+  execute(db, `ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+}
+
+function tableColumns(db: Db, table: string): string[] {
+  return queryAll<{ name: string }>(db, `PRAGMA table_info(${table})`).map((row) => row.name)
 }
 
 function seedDefaults(db: Db): void {

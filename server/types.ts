@@ -33,6 +33,8 @@ export interface WallpaperRow {
   builtin: number
   orientation: WallpaperOrientation
   pair_id: string | null
+  /** 档位宽度的 JSON 数组字符串 */
+  widths: string
   created_at: number
 }
 

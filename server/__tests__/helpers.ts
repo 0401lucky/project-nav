@@ -1,10 +1,17 @@
 // 测试公共装置：内存库 + 固定配置的 app，不监听端口。
 
+import { mkdtempSync, rmSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createApp } from '../app.ts'
 import { createDb } from '../db.ts'
+import { ensureDataDirs } from '../lib/paths.ts'
+import type { DataPaths } from '../lib/paths.ts'
 import type { AppDeps } from '../types.ts'
+
+export type { AppDeps }
 
 export const TEST_PASSWORD = 'open-sesame'
 export const TEST_SECRET = 'test-secret-'.padEnd(48, 'x')
@@ -26,6 +33,32 @@ export function testDeps(): AppDeps {
       iconsDir: ':memory:/icons',
       wallpapersDir: ':memory:/wallpapers',
     },
+  }
+}
+
+const tempDirs: string[] = []
+
+/** 带真实临时数据目录的 deps：图标、壁纸这类要落盘的接口需要它 */
+export function tempDeps(): AppDeps {
+  const dir = mkdtempSync(join(tmpdir(), 'nav-test-'))
+  tempDirs.push(dir)
+  const paths: DataPaths = {
+    root: dir,
+    dbFile: join(dir, 'nav.sqlite'),
+    iconsDir: join(dir, 'icons'),
+    wallpapersDir: join(dir, 'wallpapers'),
+  }
+  ensureDataDirs(paths)
+  return { ...testDeps(), paths }
+}
+
+export function cleanupTempDirs(): void {
+  for (const dir of tempDirs.splice(0)) {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 })
+    } catch {
+      // Windows 上 libvips 可能还握着刚读过的文件句柄；临时目录清理失败不该让测试挂掉
+    }
   }
 }
 

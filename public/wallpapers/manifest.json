@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "wallpapers": [
+    {
+      "id": "w-01-landscape",
+      "orientation": "landscape",
+      "pairId": "w-01",
+      "widths": [
+        1672,
+        836
+      ]
+    },
+    {
+      "id": "w-01-portrait",
+      "orientation": "portrait",
+      "pairId": "w-01",
+      "widths": [
+        941,
+        471
+      ]
+    },
+    {
+      "id": "w-02-landscape",
+      "orientation": "landscape",
+      "pairId": "w-02",
+      "widths": [
+        1672,
+        836
+      ]
+    },
+    {
+      "id": "w-02-portrait",
+      "orientation": "portrait",
+      "pairId": "w-02",
+      "widths": [
+        940,
+        470
+      ]
+    },
+    {
+      "id": "w-03-landscape",
+      "orientation": "landscape",
+      "pairId": "w-03",
+      "widths": [
+        1672,
+        836
+      ]
+    },
+    {
+      "id": "w-03-portrait",
+      "orientation": "portrait",
+      "pairId": "w-03",
+      "widths": [
+        940,
+        470
+      ]
+    },
+    {
+      "id": "w-04-landscape",
+      "orientation": "landscape",
+      "pairId": "w-04",
+      "widths": [
+        1672,
+        836
+      ]
+    },
+    {
+      "id": "w-04-portrait",
+      "orientation": "portrait",
+      "pairId": "w-04",
+      "widths": [
+        941,
+        471
+      ]
+    }
+  ]
+}

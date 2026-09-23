@@ -1,7 +1,7 @@
 // 数据访问层：所有 SQL 与排序规则的落点。路由只做「解析 → 校验 → 调这里 → 响应」。
 // 列列表的统一排序、换分组后的序号处理都集中在本文件，避免各路由各写一套。
 
-import type { BootstrapResponse, Bookmark, Group, Wallpaper } from '../../shared/types.ts'
+import type { BootstrapResponse, Bookmark, Group, Wallpaper, WallpaperOrientation } from '../../shared/types.ts'
 import type { BookmarkRow, Db, GroupRow, WallpaperRow } from '../types.ts'
 import { newId } from './id.ts'
 import { appendSortOrder, plannedOrders } from './order.ts'
@@ -12,7 +12,7 @@ import { readSettings } from './settings-store.ts'
 /** 全站统一排序：sort_order 为主，created_at 兜底避免并列时顺序抖动 */
 const GROUP_ORDER = 'ORDER BY sort_order ASC, created_at ASC'
 const BOOKMARK_ORDER = 'ORDER BY sort_order ASC, created_at ASC'
-const WALLPAPER_ORDER = 'ORDER BY created_at ASC'
+const WALLPAPER_ORDER = 'ORDER BY created_at ASC, id ASC'
 
 function requireRow<T>(row: T | undefined, what: string): T {
   if (row === undefined) throw new Error(`${what}写入后读不回来`)
@@ -254,4 +254,35 @@ function appendToGroupEnd(db: Db, id: string, groupId: string): void {
     appendSortOrder(last?.max_order ?? null),
     id,
   )
+}
+
+// ---------------- 壁纸写入 ----------------
+
+export interface NewWallpaper {
+  id: string
+  orientation: WallpaperOrientation
+  widths: number[]
+}
+
+export function findWallpaperRow(db: Db, id: string): WallpaperRow | undefined {
+  return queryOne<WallpaperRow>(db, 'SELECT * FROM wallpapers WHERE id = ?', id)
+}
+
+export function createWallpaper(db: Db, input: NewWallpaper): Wallpaper {
+  execute(
+    db,
+    `INSERT INTO wallpapers (id, builtin, orientation, pair_id, widths, created_at)
+     VALUES (?, 0, ?, NULL, ?, ?)`,
+    input.id,
+    input.orientation,
+    JSON.stringify(input.widths),
+    Date.now(),
+  )
+  return toWallpaper(requireRow(findWallpaperRow(db, input.id), '壁纸'))
+}
+
+export function deleteWallpaperRow(db: Db, id: string): boolean {
+  if (findWallpaperRow(db, id) === undefined) return false
+  execute(db, 'DELETE FROM wallpapers WHERE id = ?', id)
+  return true
 }

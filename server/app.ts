@@ -6,6 +6,7 @@ import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
 import type { MiddlewareHandler } from 'hono'
 import { requireAuth } from './auth.ts'
+import { DIST_DIR, PUBLIC_DIR } from './lib/paths.ts'
 import { addRoutes } from './routes/add.ts'
 import { authRoutes } from './routes/auth.ts'
 import { bookmarkRoutes } from './routes/bookmarks.ts'
@@ -14,13 +15,9 @@ import { groupRoutes } from './routes/groups.ts'
 import { importRoutes } from './routes/import.ts'
 import { metaRoutes } from './routes/meta.ts'
 import { settingsRoutes } from './routes/settings.ts'
+import { wallpaperRoutes } from './routes/wallpapers.ts'
 import { ValidationError } from './types.ts'
 import type { AppDeps } from './types.ts'
-
-/** vite 构建产物目录，与 Dockerfile 的 WORKDIR 保持一致 */
-const DIST_DIR = './dist'
-/** 开发环境下 vite 直接从 public/ 提供内置壁纸 */
-const PUBLIC_DIR = './public'
 
 /** 哈希资源可长期缓存；index.html 不缓存 */
 const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'
@@ -49,6 +46,7 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/settings', settingsRoutes(deps))
   app.route('/api/meta', metaRoutes())
   app.route('/api/import', importRoutes(deps))
+  app.route('/api/wallpapers', wallpaperRoutes(deps))
 
   const iconHandler = staticAt(deps.paths.root, () => ICON_CACHE)
   if (iconHandler) app.get('/icons/*', iconHandler)
