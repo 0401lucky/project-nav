@@ -222,9 +222,17 @@ const rootStyle = computed(() => ({ '--accent': settings.accent }))
 </script>
 
 <template>
-  <div class="app" :style="rootStyle">
-    <Wallpaper />
+  <!--
+    壁纸必须放在 .app 外面。
+    .app 是 z-index:1 的层叠上下文，壁纸放在里面时它就成了「定位元素 + z-index:0」，
+    按 CSS 绘制顺序，定位元素（第 6 层）会盖住非定位的静态内容（第 3、5 层），
+    于是搜索框、连接失败提示、空状态这些静态块连一个像素都画不出来，
+    还被那层不透明的 scrim 挡掉点击。
+    移到外面后 .app 整体位于壁纸之上，内部就不必逐处补 z-index。
+  -->
+  <Wallpaper />
 
+  <div class="app" :style="rootStyle">
     <template v-if="!booting">
       <p v-if="bootError" class="app__error">{{ bootError }}</p>
 

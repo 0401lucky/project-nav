@@ -82,10 +82,11 @@ async function onPickFile(event: Event): Promise<void> {
           :class="{ 'is-current': isCurrent(tile) }"
           type="button"
           :title="tile.builtin ? '内置壁纸' : '我上传的'"
+          :aria-label="tile.builtin ? `选择内置壁纸 ${tile.pairId}` : '选择我上传的壁纸'"
           @click="settings.selectWallpaper(tile.id)"
         >
           <img :src="thumbSrc(tile)" alt="" loading="lazy" decoding="async" />
-          <span v-if="!tile.builtin" class="tile__badge">自定义</span>
+          <span v-if="!tile.builtin" class="tile__badge" aria-hidden="true">自定义</span>
         </button>
 
         <button

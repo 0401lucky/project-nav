@@ -31,6 +31,9 @@ export function noContent(c: Context): Response {
   return c.body(null, 204)
 }
 
+/** 分组名长度上限。导入解析器也要用它，所以放在共用的校验层。 */
+export const GROUP_NAME_MAX = 40
+
 /** 必填文本：去首尾空白后不能为空，超过上限直接拒绝 */
 export function requireText(value: unknown, field: string, maxLength = 200): string {
   if (typeof value !== 'string') throw new ValidationError(`${field}必须是字符串`)

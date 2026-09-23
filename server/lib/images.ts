@@ -1,7 +1,7 @@
 // 壁纸转码：构建脚本（内置壁纸）与上传接口共用这一份，
 // 保证两条来源产出的档位结构、命名和质量策略完全一致。
 
-import { readdir, unlink, writeFile } from 'node:fs/promises'
+import { unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import type { WallpaperOrientation } from '../../shared/types.ts'
@@ -116,16 +116,6 @@ export async function deleteWallpaperFiles(
       }
     }),
   )
-}
-
-/** 找出某个 id 残留在目录里的所有文件，用于清理残缺产物 */
-export async function listWallpaperFiles(dir: string, id: string): Promise<string[]> {
-  try {
-    const names = await readdir(dir)
-    return names.filter((name) => name.startsWith(`${id}-`))
-  } catch {
-    return []
-  }
 }
 
 /** 从高到低试质量档，返回第一个不超过预算的编码结果 */

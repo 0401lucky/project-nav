@@ -3,8 +3,7 @@
 
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-
-const PASSWORD = process.env.NAV_PASSWORD ?? ''
+import { apiJson, login } from './helpers.ts'
 
 /**
  * 种子用独立前缀与独立路径。
@@ -13,37 +12,39 @@ const PASSWORD = process.env.NAV_PASSWORD ?? ''
  */
 const SEED_TITLES = ['Seed Alpha', 'Seed Beta', 'Seed Gamma', 'Seed Delta']
 
-async function login(page: Page): Promise<void> {
-  await page.goto('/')
-  await page.locator('input[type=password]').fill(PASSWORD)
-  await page.locator('input[type=password]').press('Enter')
-  await expect(page.locator('.topbar__brand')).toBeVisible()
-}
-
 /**
  * 登录并确保首页有卡片。
- * 这个规格不能依赖别的文件先跑过：e2e 用的是全新库，
- * 跑在导入测试之前时页面上是空的，网格断言会全军覆没。
+ *
+ * 这个规格不依赖别的文件先跑过，也不假设库是干净的：
+ * 「空状态」那条用例会删光所有分组、别的用例会留下自己的数据，
+ * 而它们都可能先跑。所以缺什么就自己补什么。
  */
 async function loginWithCards(page: Page): Promise<void> {
   await login(page)
 
-  const boot = (await (await page.request.get('/api/bootstrap')).json()) as {
+  const boot = await apiJson<{
     groups: { id: string }[]
     bookmarks: { title: string }[]
+  }>(page, '/api/bootstrap')
+
+  let groupId = boot.groups[0]?.id
+  if (groupId === undefined) {
+    const created = await apiJson<{ id: string }>(page, '/api/groups', {
+      method: 'POST',
+      body: { name: '测试分组' },
+    })
+    groupId = created.id
   }
 
   // 判断「是不是自己播的种」，而不是「库里有没有书签」：
   // 别的规格可能先跑过并留下数据，只看条数会误判成已播种而跳过。
   if (boot.bookmarks.some((item) => item.title === SEED_TITLES[0])) return
 
-  const groupId = boot.groups[0]?.id
-  if (groupId === undefined) throw new Error('库里连默认分组都没有')
-
   for (const title of SEED_TITLES) {
     const slug = title.toLowerCase().replace(/\s+/g, '-')
-    await page.request.post('/api/bookmarks', {
-      data: { groupId, title, url: `https://example.com/seed/${slug}` },
+    await apiJson(page, '/api/bookmarks', {
+      method: 'POST',
+      body: { groupId, title, url: `https://example.com/seed/${slug}` },
     })
   }
   await page.reload()

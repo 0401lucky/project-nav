@@ -1,5 +1,14 @@
 import { Hono } from 'hono'
-import { badRequest, noContent, notFound, optionalText, readJson, requireIdList, requireText } from '../lib/http.ts'
+import {
+  badRequest,
+  GROUP_NAME_MAX,
+  noContent,
+  notFound,
+  optionalText,
+  readJson,
+  requireIdList,
+  requireText,
+} from '../lib/http.ts'
 import { deleteIcons } from '../lib/icons.ts'
 import {
   createGroup,
@@ -13,7 +22,6 @@ import {
 import { ValidationError } from '../types.ts'
 import type { AppDeps } from '../types.ts'
 
-const NAME_MAX = 40
 /** emoji 含 ZWJ 组合可能占多个码元，留足余量 */
 const ICON_MAX = 16
 
@@ -42,7 +50,7 @@ export function groupRoutes(deps: AppDeps): Hono {
 
   app.post('/', async (c) => {
     const body = await readJson<GroupBody>(c)
-    const name = requireText(body?.name, '分组名', NAME_MAX)
+    const name = requireText(body?.name, '分组名', GROUP_NAME_MAX)
     const icon = optionalText(body?.icon, '图标', ICON_MAX)
 
     return c.json(createGroup(deps.db, { name, icon: icon ?? null }), 201)
@@ -51,7 +59,7 @@ export function groupRoutes(deps: AppDeps): Hono {
   app.patch('/:id', async (c) => {
     const body = await readJson<GroupBody>(c)
     const patch: { name?: string; icon?: string | null } = {}
-    if (body?.name !== undefined) patch.name = requireText(body.name, '分组名', NAME_MAX)
+    if (body?.name !== undefined) patch.name = requireText(body.name, '分组名', GROUP_NAME_MAX)
     if (body?.icon !== undefined) patch.icon = optionalText(body.icon, '图标', ICON_MAX) ?? null
 
     const group = updateGroup(deps.db, c.req.param('id'), patch)

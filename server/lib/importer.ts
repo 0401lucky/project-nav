@@ -8,6 +8,7 @@
 
 import type { ImportResult } from '../../shared/types.ts'
 import type { Db, ImportedGroup } from '../types.ts'
+import { GROUP_NAME_MAX } from './http.ts'
 import type { IconJob } from './icons.ts'
 import { transaction } from './query.ts'
 import { createBookmark, createGroup, listBookmarkRows, listGroupRows } from './repo.ts'
@@ -34,12 +35,15 @@ export function applyImport(db: Db, parsed: readonly ImportedGroup[]): ApplyImpo
         if (seenUrls.has(item.url)) continue
 
         if (groupId === null) {
-          const existing = groupIdByName.get(group.name)
+          // 解析出来的文件夹名可能很长；不截断的话它会绕过路由的 40 字校验，
+          // 之后用户在界面上连保存都做不到
+          const name = group.name.slice(0, GROUP_NAME_MAX)
+          const existing = groupIdByName.get(name)
           if (existing !== undefined) {
             groupId = existing
           } else {
-            groupId = createGroup(db, { name: group.name, icon: null }).id
-            groupIdByName.set(group.name, groupId)
+            groupId = createGroup(db, { name, icon: null }).id
+            groupIdByName.set(name, groupId)
             groupCount += 1
           }
         }

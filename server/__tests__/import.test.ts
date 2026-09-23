@@ -166,3 +166,34 @@ describe('导入接口的鉴权', () => {
     assert.equal((await anonymous.request('/api/import/legacy', { method: 'POST' })).status, 401)
   })
 })
+
+describe('导入时的分组名长度', () => {
+  it('文件夹名过长按上限截断，截断后仍能正常编辑', async () => {
+    const { api } = await authedClient()
+    const longName = '长'.repeat(200)
+
+    const html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<DL><p>
+    <DT><H3>${longName}</H3>
+    <DL><p>
+        <DT><A HREF="http://127.0.0.1:1/long">超长文件夹里的书签</A>
+    </DL><p>
+</DL><p>`
+
+    const result = await json<ImportResult>(await api.post('/api/import/html', htmlForm(html)))
+    assert.equal(result.bookmarks, 1)
+
+    const boot = await snapshot(api)
+    const created = boot.groups.find((group) => group.name !== '常用')
+    assert.ok(created, '应该建出了分组')
+    assert.equal(
+      created.name.length,
+      40,
+      '导入的组名必须和路由共用同一个上限，否则它会绕过校验',
+    )
+
+    // 截断的意义就在这里：不截断的话用户在这个分组上连保存都做不到
+    const patched = await api.patch(`/api/groups/${created.id}`, { name: created.name })
+    assert.equal(patched.status, 200)
+  })
+})

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { apiJson, login } from './helpers.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const BOOKMARKS_HTML = resolve(HERE, 'fixtures/bookmarks.html')
@@ -13,15 +14,6 @@ const BOOKMARKS_HTML = resolve(HERE, 'fixtures/bookmarks.html')
  * 换台机器克隆下来就没有了，测试会莫名其妙挂掉）。
  */
 const UPLOAD_IMAGE = resolve(HERE, 'fixtures/upload.png')
-
-const PASSWORD = process.env.NAV_PASSWORD ?? ''
-
-async function login(page: Page): Promise<void> {
-  await page.goto('/')
-  await page.locator('input[type=password]').fill(PASSWORD)
-  await page.locator('input[type=password]').press('Enter')
-  await expect(page.locator('.topbar__brand')).toBeVisible()
-}
 
 async function openSettings(page: Page): Promise<void> {
   await page.getByRole('button', { name: '设置' }).click()
@@ -45,28 +37,41 @@ test('设置面板打开后各分区都在', async ({ page }) => {
 test('壁纸：一个主题一个格子，切换后刷新仍生效', async ({ page }) => {
   await openSettings(page)
 
-  // 四组内置主题，横竖版合成一个格子
+  // 期望的格子数从接口算出来，不写死：内置按主题配对成一个格子，上传的各占一个。
+  // 写死 4 的话，库里只要有一张上传壁纸这条就挂。
+  const boot = await apiJson<{ wallpapers: { pairId: string | null }[] }>(page, '/api/bootstrap')
+  const themes = new Set(
+    boot.wallpapers.filter((item) => item.pairId !== null).map((item) => item.pairId),
+  )
+  const uploaded = boot.wallpapers.filter((item) => item.pairId === null).length
+
   const tiles = page.locator('.tile')
-  await expect(tiles).toHaveCount(4)
+  await expect(tiles).toHaveCount(themes.size + uploaded)
 
-  const currentBefore = await page.locator('.tile.is-current img').getAttribute('src')
-  expect(currentBefore).not.toBeNull()
+  // 挑一个当前没选中的格子
+  const total = await tiles.count()
+  const currentIndex = (await page.evaluate(`(() => {
+    const list = [...document.querySelectorAll('.tile')]
+    return list.findIndex((el) => el.classList.contains('is-current'))
+  })()`)) as number
+  const targetIndex = (currentIndex + 1) % total
 
-  await tiles.nth(2).click()
-  await expect(tiles.nth(2)).toHaveClass(/is-current/)
-  const currentAfter = await page.locator('.tile.is-current img').getAttribute('src')
-  expect(currentAfter).not.toBe(currentBefore)
+  const before = await page.locator('.wallpaper__img').getAttribute('src')
+  await tiles.nth(targetIndex).click()
+  await expect(tiles.nth(targetIndex)).toHaveClass(/is-current/)
+  await expect(page.locator('.wallpaper__img')).not.toHaveAttribute('src', before ?? '')
 
   // 关面板再刷新，选择应该被服务端记住了
   await page.getByRole('button', { name: '关闭' }).click()
   await page.reload()
   await openSettings(page)
-  await expect(page.locator('.tile').nth(2)).toHaveClass(/is-current/)
+  await expect(page.locator('.tile').nth(targetIndex)).toHaveClass(/is-current/)
 })
 
 test('上传自定义壁纸后自动选中，并可删除', async ({ page }) => {
   await openSettings(page)
   const before = await page.locator('.tile').count()
+  const badgesBefore = await page.locator('.tile__badge').count()
 
   const chooser = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: '上传图片' }).click()
@@ -74,14 +79,17 @@ test('上传自定义壁纸后自动选中，并可删除', async ({ page }) => 
 
   // 转码两档 avif/webp 要跑一会儿
   await expect(page.locator('.tile')).toHaveCount(before + 1, { timeout: 30_000 })
-  await expect(page.locator('.tile__badge')).toHaveText('自定义')
-  // 上传完会自动切过去
+  await expect(page.locator('.tile__badge')).toHaveCount(badgesBefore + 1)
+  // 上传完会自动切过去，所以当前格子上应该是「自定义」徽章
   await expect(page.locator('.tile.is-current .tile__badge')).toHaveText('自定义')
 
-  // 删掉它
-  await page.locator('.tile__remove').click()
+  // 删掉它（删除按钮与选择按钮是兄弟节点，靠 .cell 定位）
+  await page
+    .locator('.cell', { has: page.locator('.tile.is-current') })
+    .locator('.tile__remove')
+    .click()
   await expect(page.locator('.tile')).toHaveCount(before)
-  await expect(page.locator('.tile__badge')).toHaveCount(0)
+  await expect(page.locator('.tile__badge')).toHaveCount(badgesBefore)
 })
 
 test('导入浏览器书签 HTML：文件夹变分组、嵌套合进顶层、占位跳过', async ({ page }) => {
@@ -91,17 +99,24 @@ test('导入浏览器书签 HTML：文件夹变分组、嵌套合进顶层、占
   await page.getByRole('button', { name: '选择文件' }).first().click()
   await (await chooser).setFiles(BOOKMARKS_HTML)
 
-  await expect(page.locator('.toast')).toContainText('导入完成', { timeout: 20_000 })
+  // 库里可能本来就有这些书签（导入是幂等的），所以两种情况都算通过
+  await expect(page.locator('.toast')).toContainText('导入', { timeout: 20_000 })
   await page.getByRole('button', { name: '关闭' }).click()
 
-  const toolbar = page.locator('.panel', { has: page.locator('.panel__name', { hasText: '书签栏' }) })
-  await expect(toolbar).toBeVisible()
-  // Alpha、Beta，加嵌套文件夹里那条；javascript: 占位不进总数
-  await expect(toolbar.locator('.card__title')).toHaveCount(3)
-  await expect(toolbar.locator('.card__title', { hasText: '嵌套里的书签' })).toBeVisible()
+  // 不断言条数，只断言「该落在哪个分组里」—— 这才是这条用例要验的映射关系，
+  // 数条数会因为库里已有的数据而假失败。
+  const panelOf = (name: string) =>
+    page.locator('.panel', { has: page.locator('.panel__name', { hasText: name }) })
 
-  const other = page.locator('.panel', { has: page.locator('.panel__name', { hasText: '导入测试组' }) })
-  await expect(other.locator('.card__title')).toHaveCount(1)
+  const toolbar = panelOf('书签栏')
+  await expect(toolbar).toBeVisible()
+  for (const title of ['Alpha 示例', 'Beta 示例', '嵌套里的书签']) {
+    await expect(toolbar.locator('.card__title', { hasText: title })).toBeVisible()
+  }
+
+  await expect(panelOf('导入测试组').locator('.card__title', { hasText: 'Gamma 示例' })).toBeVisible()
+  // javascript: 占位书签应被跳过，任何分组里都不该出现它
+  await expect(page.locator('.card__title', { hasText: '占位书签' })).toHaveCount(0)
 })
 
 test('收藏按钮是合法 bookmarklet，令牌能过 /add 校验', async ({ page }) => {
@@ -144,9 +159,13 @@ test('搜索引擎与强调色：改完立刻生效', async ({ page }) => {
 test('自定义搜索引擎缺 %s 时给出提示且不保存', async ({ page }) => {
   await openSettings(page)
 
-  await page.getByRole('button', { name: '自定义' }).click()
+  // 限定在搜索引擎分区里找：壁纸格子的可访问名字里也可能带「自定义」
+  const section = page.locator('.section', {
+    has: page.locator('.section__title', { hasText: '搜索引擎' }),
+  })
+  await section.getByRole('button', { name: '自定义' }).click()
   await page.locator('#se-template').fill('https://example.com/search?q=')
-  await page.locator('.custom').getByRole('button', { name: '保存' }).click()
+  await section.getByRole('button', { name: '保存' }).click()
 
   await expect(page.locator('.toast')).toContainText('%s')
 })
