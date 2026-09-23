@@ -1,0 +1,47 @@
+/* 设计令牌的唯一出处。组件里只引用变量，不写死颜色与圆角。 */
+
+:root {
+  /* 强调色由 settings.accent 在 App.vue 里覆盖写到根节点 */
+  --accent: #e8c87a;
+
+  --text: rgb(255 255 255 / 0.92);
+  --text-2: rgb(255 255 255 / 0.6);
+  --text-3: rgb(255 255 255 / 0.38);
+
+  --glass-panel: rgb(255 255 255 / 0.08);
+  --glass-card: rgb(255 255 255 / 0.06);
+  --glass-card-hover: rgb(255 255 255 / 0.12);
+  --glass-sheet: rgb(255 255 255 / 0.12);
+
+  --stroke: rgb(255 255 255 / 0.15);
+  --stroke-strong: rgb(255 255 255 / 0.28);
+
+  /* 模糊只允许出现在分组面板、弹出面板、卡片悬停三类容器上 */
+  --blur-panel: 20px;
+  --blur-sheet: 40px;
+
+  --r-panel: 20px;
+  --r-card: 14px;
+  --r-pill: 999px;
+
+  --dur: 180ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  --gap: 10px;
+  --page-x: 24px;
+  --topbar-h: 60px;
+
+  /* 壁纸之上、内容之下的遮罩，保证任何壁纸下文字都可读 */
+  --scrim: linear-gradient(
+    180deg,
+    rgb(0 0 0 / 0.35),
+    rgb(0 0 0 / 0.15) 40%,
+    rgb(0 0 0 / 0.55)
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur: 1ms;
+  }
+}
