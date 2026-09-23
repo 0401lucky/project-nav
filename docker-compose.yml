@@ -1,5 +1,10 @@
 # 一个进程、一个容器，不需要 Nginx：Node 同时托管前端产物与 API。
 # 用法：cp .env.example .env && docker compose up -d --build
+#
+# 必须钉死项目名：compose 默认拿目录名当项目名，而目录名一旦含中文
+# （比如 项目导航站），清洗后会变成空字符串，compose 直接报
+# "project name must not be empty" 拒绝启动。
+name: personal-bookmark-nav
 
 services:
   nav:
