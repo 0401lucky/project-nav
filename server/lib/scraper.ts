@@ -3,7 +3,7 @@
 
 const FETCH_TIMEOUT_MS = 8000
 const HTML_BYTES_LIMIT = 256 * 1024
-const UA = 'Mozilla/5.0 (compatible; BookmarkNavBot/1.0)'
+export const USER_AGENT = 'Mozilla/5.0 (compatible; BookmarkNavBot/1.0)'
 
 export interface FetchedPage {
   url: string
@@ -27,7 +27,7 @@ export async function fetchPage(url: string): Promise<FetchedPage> {
     const resp = await fetch(url, {
       method: 'GET',
       headers: {
-        'User-Agent': UA,
+        'User-Agent': USER_AGENT,
         Accept: 'text/html,application/xhtml+xml',
       },
       redirect: 'follow',
@@ -198,18 +198,18 @@ function absoluteUrl(href: string, base: string): string | null {
 
 function matchFirst(s: string, re: RegExp): string | undefined {
   const m = s.match(re)
-  return m ? decodeEntities(m[1].trim()) : undefined
+  return m ? decodeHtmlEntities(m[1].trim()) : undefined
 }
 
 function matchAttr(s: string, regexps: RegExp[]): string | undefined {
   for (const re of regexps) {
     const m = s.match(re)
-    if (m) return decodeEntities(m[1].trim())
+    if (m) return decodeHtmlEntities(m[1].trim())
   }
   return undefined
 }
 
-function decodeEntities(s: string): string {
+export function decodeHtmlEntities(s: string): string {
   return s
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -221,15 +221,23 @@ function decodeEntities(s: string): string {
 
 // ---------------- URL 工具 ----------------
 
+/**
+ * 把用户输入规范化成可存储的绝对 URL，无法识别时返回 null。
+ * 全站唯一入口：写库、抓取、导入去重都走这里，保证同一个网址只有一种写法
+ * （否则 https://x.com 与 https://x.com/ 会被当成两条书签）。
+ */
 export function normalizeUrl(s: string): string | null {
   let v = (s || '').trim()
   if (!v) return null
-  if (!/^https?:\/\//i.test(v)) v = 'https://' + v
+  const hadScheme = /^https?:\/\//i.test(v)
+  if (!hadScheme) v = 'https://' + v
   try {
     const u = new URL(v)
     if (!u.host) return null
-    // 只有点号域名和 localhost 才当有效输入，避免把「abc」这类随手输入当成网址
-    if (!u.host.includes('.') && u.host !== 'localhost') return null
+    // 用 hostname 而不是 host：host 含端口，localhost:3000 会因此匹配不上；
+    // 没写协议头时要求是点号域名或 localhost，避免把「abc」这类随手输入当成网址；
+    // 显式写了 http:// 就照收，内网主机名（http://nas/）也才算合法
+    if (!hadScheme && !u.hostname.includes('.') && u.hostname !== 'localhost') return null
     return u.toString().replace(/\/$/, '')
   } catch {
     return null

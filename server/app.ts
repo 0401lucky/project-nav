@@ -6,10 +6,13 @@ import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
 import type { MiddlewareHandler } from 'hono'
 import { requireAuth } from './auth.ts'
+import { addRoutes } from './routes/add.ts'
 import { authRoutes } from './routes/auth.ts'
 import { bookmarkRoutes } from './routes/bookmarks.ts'
 import { bootstrapRoutes } from './routes/bootstrap.ts'
 import { groupRoutes } from './routes/groups.ts'
+import { importRoutes } from './routes/import.ts'
+import { metaRoutes } from './routes/meta.ts'
 import { settingsRoutes } from './routes/settings.ts'
 import { ValidationError } from './types.ts'
 import type { AppDeps } from './types.ts'
@@ -35,12 +38,17 @@ export function createApp(deps: AppDeps): Hono {
   // 登录接口本身不能要求已登录
   app.route('/api/auth', authRoutes(deps))
 
+  // bookmarklet 入口自带令牌校验，不走会话
+  app.route('/add', addRoutes(deps))
+
   // 注册位置在 auth 路由之后：/api/auth/* 先被上面的 handler 消费掉
   app.use('/api/*', requireAuth(deps.config.sessionSecret))
   app.route('/api/bootstrap', bootstrapRoutes(deps))
   app.route('/api/groups', groupRoutes(deps))
   app.route('/api/bookmarks', bookmarkRoutes(deps))
   app.route('/api/settings', settingsRoutes(deps))
+  app.route('/api/meta', metaRoutes())
+  app.route('/api/import', importRoutes(deps))
 
   const iconHandler = staticAt(deps.paths.root, () => ICON_CACHE)
   if (iconHandler) app.get('/icons/*', iconHandler)

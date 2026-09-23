@@ -213,6 +213,17 @@ export function deleteBookmark(db: Db, id: string): boolean {
   return true
 }
 
+/** 只有图标管道该动这个标记：置 1 之前必须已经确保文件在盘上 */
+export function setBookmarkHasIcon(db: Db, id: string, hasIcon: boolean): void {
+  execute(
+    db,
+    'UPDATE bookmarks SET has_icon = ?, updated_at = ? WHERE id = ?',
+    hasIcon ? 1 : 0,
+    Date.now(),
+    id,
+  )
+}
+
 /** 按给定顺序重编号，列表里不属于该分组的书签会被一并移入 */
 export function reorderBookmarks(db: Db, groupId: string, ids: readonly string[]): void {
   const now = Date.now()

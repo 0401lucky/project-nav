@@ -1,9 +1,11 @@
 import { Hono } from 'hono'
 import { badRequest, noContent, notFound, optionalText, readJson, requireIdList, requireText } from '../lib/http.ts'
+import { deleteIcons } from '../lib/icons.ts'
 import {
   createGroup,
   deleteGroup,
   findGroupRow,
+  listBookmarkRows,
   listGroupRows,
   reorderGroups,
   updateGroup,
@@ -57,7 +59,7 @@ export function groupRoutes(deps: AppDeps): Hono {
     return c.json(group)
   })
 
-  app.delete('/:id', (c) => {
+  app.delete('/:id', async (c) => {
     const id = c.req.param('id')
     if (findGroupRow(deps.db, id) === undefined) return notFound(c, '分组不存在')
 
@@ -67,7 +69,16 @@ export function groupRoutes(deps: AppDeps): Hono {
       if (findGroupRow(deps.db, moveTo) === undefined) return badRequest(c, '目标分组不存在')
     }
 
+    // 不带 moveTo 时组内书签会被外键级联删掉，磁盘上的图标文件也要跟着清掉
+    const orphanedIds =
+      moveTo === undefined
+        ? listBookmarkRows(deps.db)
+            .filter((row) => row.group_id === id)
+            .map((row) => row.id)
+        : []
+
     deleteGroup(deps.db, id, moveTo ?? null)
+    await deleteIcons(deps.paths, orphanedIds)
     return noContent(c)
   })
 

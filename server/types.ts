@@ -43,6 +43,21 @@ export interface AppDeps {
   paths: DataPaths
 }
 
+/** 导入解析器的统一产物：两个解析器（书签 HTML / 旧站 JSON）都归到这里 */
+export interface ImportedBookmark {
+  title: string
+  url: string
+  description?: string | null
+}
+
+export interface ImportedGroup {
+  name: string
+  bookmarks: ImportedBookmark[]
+}
+
+/** 没落在任何分组里的书签归到这里 */
+export const UNCATEGORIZED_GROUP = '未分类'
+
 /** 入参校验失败：路由统一映射成 400 */
 export class ValidationError extends Error {
   constructor(message: string) {

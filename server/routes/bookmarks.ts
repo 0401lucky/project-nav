@@ -3,17 +3,20 @@ import {
   noContent,
   notFound,
   optionalText,
+  optionalUrl,
   readJson,
   requireIdList,
   requireText,
   requireUrl,
 } from '../lib/http.ts'
+import { deleteIcons, scheduleIconCache } from '../lib/icons.ts'
 import {
   createBookmark,
   deleteBookmark,
   findGroupRow,
   listBookmarkRows,
   reorderBookmarks,
+  setBookmarkHasIcon,
   updateBookmark,
 } from '../lib/repo.ts'
 import { ValidationError } from '../types.ts'
@@ -28,6 +31,7 @@ interface BookmarkBody {
   title?: unknown
   url?: unknown
   description?: unknown
+  iconUrl?: unknown
 }
 
 export function bookmarkRoutes(deps: AppDeps): Hono {
@@ -70,7 +74,15 @@ export function bookmarkRoutes(deps: AppDeps): Hono {
     const url = requireUrl(body?.url, '网址')
     const description = optionalText(body?.description, '描述', DESCRIPTION_MAX) ?? null
 
-    return c.json(createBookmark(deps.db, { groupId, title, url, description }), 201)
+    const created = createBookmark(deps.db, { groupId, title, url, description })
+
+    // 先回响应，再去下载图标：外部站点的响应速度不该拖住保存
+    const iconUrl = optionalUrl(body?.iconUrl, '图标地址')
+    if (typeof iconUrl === 'string') {
+      scheduleIconCache(deps.db, deps.paths, created.id, iconUrl)
+    }
+
+    return c.json(created, 201)
   })
 
   app.patch('/:id', async (c) => {
@@ -95,13 +107,31 @@ export function bookmarkRoutes(deps: AppDeps): Hono {
       patch.groupId = groupId
     }
 
-    const bookmark = updateBookmark(deps.db, c.req.param('id'), patch)
+    const id = c.req.param('id')
+    const bookmark = updateBookmark(deps.db, id, patch)
     if (bookmark === undefined) return notFound(c, '书签不存在')
+
+    // 换了图标先降回 has_icon=0，前端立刻显示首字色块；抓成功再翻回 1
+    const iconUrl = optionalUrl(body?.iconUrl, '图标地址')
+    if (iconUrl === null) {
+      setBookmarkHasIcon(deps.db, id, false)
+      await deleteIcons(deps.paths, [id])
+      return c.json({ ...bookmark, hasIcon: false })
+    }
+    if (typeof iconUrl === 'string') {
+      setBookmarkHasIcon(deps.db, id, false)
+      scheduleIconCache(deps.db, deps.paths, id, iconUrl)
+      return c.json({ ...bookmark, hasIcon: false })
+    }
+
     return c.json(bookmark)
   })
 
-  app.delete('/:id', (c) => {
-    if (!deleteBookmark(deps.db, c.req.param('id'))) return notFound(c, '书签不存在')
+  app.delete('/:id', async (c) => {
+    const id = c.req.param('id')
+    if (!deleteBookmark(deps.db, id)) return notFound(c, '书签不存在')
+
+    await deleteIcons(deps.paths, [id])
     return noContent(c)
   })
 

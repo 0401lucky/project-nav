@@ -1,5 +1,7 @@
 // 测试公共装置：内存库 + 固定配置的 app，不监听端口。
 
+import { createServer } from 'node:http'
+import type { ServerResponse } from 'node:http'
 import { createApp } from '../app.ts'
 import { createDb } from '../db.ts'
 import type { AppDeps } from '../types.ts'
@@ -61,9 +63,17 @@ export interface ApiClient {
 
 export function apiClient(deps: AppDeps, cookie: string): ApiClient {
   const app = createApp(deps)
-  const headers = { 'Content-Type': 'application/json', Cookie: cookie }
-  const send = async (method: string, path: string, body?: unknown): Promise<Response> =>
-    await app.request(path, body === undefined ? { method, headers } : { method, headers, body: JSON.stringify(body) })
+  const send = async (method: string, path: string, body?: unknown): Promise<Response> => {
+    // FormData 交给运行时自己设 Content-Type，才能带上 multipart 边界
+    if (body instanceof FormData) {
+      return await app.request(path, { method, headers: { Cookie: cookie }, body })
+    }
+    const headers = { 'Content-Type': 'application/json', Cookie: cookie }
+    return await app.request(
+      path,
+      body === undefined ? { method, headers } : { method, headers, body: JSON.stringify(body) },
+    )
+  }
 
   return {
     get: (path) => send('GET', path),
@@ -83,6 +93,29 @@ export async function authedClient(): Promise<{ deps: AppDeps; api: ApiClient }>
 
 export async function json<T>(response: Response): Promise<T> {
   return (await response.json()) as T
+}
+
+/**
+ * 起一个一次性 HTTP 服务供测试用，跑完自动关闭。
+ * reply 里直接写响应；run 拿到的是服务根地址，自己拼路径。
+ */
+export async function withServer(
+  reply: (res: ServerResponse) => void,
+  run: (baseUrl: string) => Promise<void>,
+): Promise<void> {
+  const server = createServer((_req, res) => reply(res))
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', resolve)
+  })
+  const address = server.address()
+  const port = typeof address === 'object' && address !== null ? address.port : 0
+  try {
+    await run(`http://127.0.0.1:${port}`)
+  } finally {
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve())
+    })
+  }
 }
 
 export { createApp }
