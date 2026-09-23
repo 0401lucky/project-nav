@@ -22,6 +22,7 @@ export function toBookmark(row: BookmarkRow): Bookmark {
     description: row.description,
     hasIcon: row.has_icon === 1,
     sortOrder: row.sort_order,
+    updatedAt: row.updated_at,
   }
 }
 

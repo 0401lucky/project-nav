@@ -13,8 +13,10 @@ export function addRoutes(deps: AppDeps): Hono {
   const app = new Hono()
 
   app.get('/', (c) => {
+    const expected = readSettings(deps.db).bookmarkletToken
     const token = c.req.query('token') ?? ''
-    if (!constantTimeEquals(token, readSettings(deps.db).bookmarkletToken)) {
+    // expected 为空说明设置被改坏了：这时不能把空 token 当成「匹配」放行
+    if (expected === '' || !constantTimeEquals(token, expected)) {
       return c.text('令牌无效，请回设置页重新拖一次收藏按钮', 403)
     }
 

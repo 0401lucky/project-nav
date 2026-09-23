@@ -236,3 +236,64 @@ describe('PUT /api/bookmarks/order', () => {
     )
   })
 })
+
+describe('校验必须发生在写库之前', () => {
+  it('POST 的 iconUrl 非法时返回 400 且不写库', async () => {
+    const { api, groupId } = await setup()
+    const before = (await bookmarksIn(api, groupId)).length
+
+    const response = await api.post('/api/bookmarks', {
+      groupId,
+      title: '不该被创建',
+      url: 'https://example.com',
+      iconUrl: 123,
+    })
+
+    assert.equal(response.status, 400)
+    assert.equal(
+      (await bookmarksIn(api, groupId)).length,
+      before,
+      '前端拿到 400 会回滚乐观状态，服务端留下半条数据就不一致了',
+    )
+  })
+
+  it('PATCH 的 iconUrl 非法时返回 400 且不改动任何字段', async () => {
+    const { api, groupId } = await setup()
+    const created = await addBookmark(api, groupId, '原标题', 'https://example.com')
+
+    const response = await api.patch(`/api/bookmarks/${created.id}`, {
+      title: '被改掉的标题',
+      iconUrl: 123,
+    })
+
+    assert.equal(response.status, 400)
+    const after = (await bookmarksIn(api, groupId))[0]!
+    assert.equal(after.title, '原标题', '校验失败不能让前面的字段改动生效')
+  })
+})
+
+describe('updatedAt', () => {
+  it('新增时带上，修改后变大', async () => {
+    const { api, groupId } = await setup()
+    const created = await addBookmark(api, groupId, '标题', 'https://example.com')
+    assert.ok(Number.isFinite(created.updatedAt) && created.updatedAt > 0)
+
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    const updated = await json<Bookmark>(
+      await api.patch(`/api/bookmarks/${created.id}`, { title: '新标题' }),
+    )
+    assert.ok(updated.updatedAt > created.updatedAt, '前端拿 ?v=updatedAt 当图标缓存键')
+  })
+
+  it('换分组也刷新 updatedAt', async () => {
+    const { api, groupId } = await setup()
+    const target = await json<Group>(await api.post('/api/groups', { name: '目标' }))
+    const created = await addBookmark(api, groupId, '标题', 'https://example.com')
+
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    const moved = await json<Bookmark>(
+      await api.patch(`/api/bookmarks/${created.id}`, { groupId: target.id }),
+    )
+    assert.ok(moved.updatedAt > created.updatedAt)
+  })
+})

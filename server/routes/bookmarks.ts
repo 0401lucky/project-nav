@@ -73,11 +73,12 @@ export function bookmarkRoutes(deps: AppDeps): Hono {
     const title = requireText(body?.title, '标题', TITLE_MAX)
     const url = requireUrl(body?.url, '网址')
     const description = optionalText(body?.description, '描述', DESCRIPTION_MAX) ?? null
+    // 所有校验都必须在写库之前：校验失败返回 400 时不能留下半条数据
+    const iconUrl = optionalUrl(body?.iconUrl, '图标地址')
 
     const created = createBookmark(deps.db, { groupId, title, url, description })
 
     // 先回响应，再去下载图标：外部站点的响应速度不该拖住保存
-    const iconUrl = optionalUrl(body?.iconUrl, '图标地址')
     if (typeof iconUrl === 'string') {
       scheduleIconCache(deps.db, deps.paths, created.id, iconUrl)
     }
@@ -107,12 +108,14 @@ export function bookmarkRoutes(deps: AppDeps): Hono {
       patch.groupId = groupId
     }
 
+    // 校验全部前置到写库之前，400 时不能留下已生效的改动
+    const iconUrl = optionalUrl(body?.iconUrl, '图标地址')
+
     const id = c.req.param('id')
     const bookmark = updateBookmark(deps.db, id, patch)
     if (bookmark === undefined) return notFound(c, '书签不存在')
 
     // 换了图标先降回 has_icon=0，前端立刻显示首字色块；抓成功再翻回 1
-    const iconUrl = optionalUrl(body?.iconUrl, '图标地址')
     if (iconUrl === null) {
       setBookmarkHasIcon(deps.db, id, false)
       await deleteIcons(deps.paths, [id])

@@ -5,7 +5,15 @@ import { join } from 'node:path'
 import { after, describe, it } from 'node:test'
 import sharp from 'sharp'
 import { createDb } from '../db.ts'
-import { cacheIcon, deleteIcons, faviconSource, iconFilePath, iconPath } from '../lib/icons.ts'
+import {
+  cacheIcon,
+  cacheIconFromPage,
+  deleteIcons,
+  faviconSource,
+  ICON_SIZE,
+  iconFilePath,
+  iconPath,
+} from '../lib/icons.ts'
 import type { DataPaths } from '../lib/paths.ts'
 import { createBookmark, listGroupRows } from '../lib/repo.ts'
 import { withServer } from './helpers.ts'
@@ -47,6 +55,36 @@ function hasIcon(db: Db, bookmarkId: string): boolean {
     | { has_icon: number }
     | undefined
   return row?.has_icon === 1
+}
+
+function updatedAtOf(db: Db, bookmarkId: string): number {
+  const row = db.prepare('SELECT updated_at FROM bookmarks WHERE id = ?').get(bookmarkId) as
+    | { updated_at: number }
+    | undefined
+  return row?.updated_at ?? 0
+}
+
+/**
+ * 结构与真实 ICO 一致的假文件：头部 + 一条 BMP 条目。
+ * 实测 github / 百度 / 知乎 / 掘金 / B 站的 favicon.ico 都是这种内嵌 BMP 的格式，
+ * sharp（libvips）解不了 ICO 容器。
+ */
+function fakeIco(): Buffer {
+  const header = Buffer.alloc(6)
+  header.writeUInt16LE(0, 0)
+  header.writeUInt16LE(1, 2)
+  header.writeUInt16LE(1, 4)
+
+  const entry = Buffer.alloc(16)
+  entry[0] = 32
+  entry[1] = 32
+  entry.writeUInt16LE(1, 4)
+  entry.writeUInt16LE(32, 6)
+  const payload = Buffer.alloc(32, 0x22)
+  entry.writeUInt32LE(payload.length, 8)
+  entry.writeUInt32LE(6 + 16, 12)
+
+  return Buffer.concat([header, entry, payload])
 }
 
 after(() => {
@@ -198,6 +236,139 @@ describe('cacheIcon', () => {
     const bookmarkId = addBookmark(db)
     assert.equal(await cacheIcon(db, paths, bookmarkId, 'http://127.0.0.1:1/favicon.ico'), false)
     assert.equal(hasIcon(db, bookmarkId), false)
+  })
+
+  it('直接给 favicon.ico 时放弃：sharp 不支持 ICO 容器', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const ico = fakeIco()
+
+    await withServer(
+      (res) => {
+        res.writeHead(200, { 'Content-Type': 'image/x-icon', 'Content-Length': String(ico.length) })
+        res.end(ico)
+      },
+      async (base) => {
+        assert.equal(await cacheIcon(db, paths, bookmarkId, base), false)
+      },
+    )
+
+    assert.equal(hasIcon(db, bookmarkId), false)
+    assert.ok(!existsSync(iconFilePath(paths, bookmarkId)))
+  })
+
+  it('图标落盘会刷新 updated_at，前端才能靠它感知图标换了', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const before = updatedAtOf(db, bookmarkId)
+    const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#123456' } })
+      .png()
+      .toBuffer()
+
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    await withServer(
+      (res) => {
+        res.writeHead(200, { 'Content-Type': 'image/png' })
+        res.end(png)
+      },
+      async (base) => {
+        assert.equal(await cacheIcon(db, paths, bookmarkId, base), true)
+      },
+    )
+
+    assert.ok(updatedAtOf(db, bookmarkId) > before)
+  })
+})
+
+describe('cacheIconFromPage', () => {
+  it('优先用页面声明的候选，绕开 sharp 解不了的 ICO', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const png = await sharp({
+      create: { width: 180, height: 180, channels: 3, background: '#22aa66' },
+    })
+      .png()
+      .toBuffer()
+    const ico = fakeIco()
+
+    await withServer(
+      (res, req) => {
+        if (req.url === '/apple.png') {
+          res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': String(png.length) })
+          res.end(png)
+          return
+        }
+        if (req.url === '/favicon.ico') {
+          res.writeHead(200, { 'Content-Type': 'image/x-icon', 'Content-Length': String(ico.length) })
+          res.end(ico)
+          return
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+        res.end(
+          '<html><head><link rel="apple-touch-icon" sizes="180x180" href="/apple.png" />' +
+            '<link rel="icon" href="/favicon.ico" /></head></html>',
+        )
+      },
+      async (base) => {
+        assert.equal(await cacheIconFromPage(db, paths, bookmarkId, base), true)
+      },
+    )
+
+    assert.equal(hasIcon(db, bookmarkId), true)
+    const meta = await sharp(iconFilePath(paths, bookmarkId)).metadata()
+    assert.equal(meta.format, 'webp')
+    assert.equal(meta.width, ICON_SIZE)
+  })
+
+  it('页面只提供 ICO 时放弃，退回首页首字色块', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const ico = fakeIco()
+
+    await withServer(
+      (res, req) => {
+        if (req.url === '/favicon.ico') {
+          res.writeHead(200, { 'Content-Type': 'image/x-icon', 'Content-Length': String(ico.length) })
+          res.end(ico)
+          return
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+        res.end('<html><head><title>没有图标声明</title></head></html>')
+      },
+      async (base) => {
+        assert.equal(await cacheIconFromPage(db, paths, bookmarkId, base), false)
+      },
+    )
+
+    assert.equal(hasIcon(db, bookmarkId), false)
+    assert.ok(!existsSync(iconFilePath(paths, bookmarkId)))
+  })
+
+  it('页面抓不到时仍会试站点根目录，覆盖「.ico 其实是 PNG」的站点', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const png = await sharp({
+      create: { width: 64, height: 64, channels: 3, background: '#8844cc' },
+    })
+      .png()
+      .toBuffer()
+
+    await withServer(
+      (res, req) => {
+        if (req.url === '/favicon.ico') {
+          res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': String(png.length) })
+          res.end(png)
+          return
+        }
+        res.writeHead(500)
+        res.end()
+      },
+      async (base) => {
+        assert.equal(await cacheIconFromPage(db, paths, bookmarkId, base), true)
+      },
+    )
+
+    assert.equal(hasIcon(db, bookmarkId), true)
   })
 })
 

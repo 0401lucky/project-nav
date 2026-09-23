@@ -7,15 +7,16 @@ import { join } from 'node:path'
 import sharp from 'sharp'
 import type { Db } from '../types.ts'
 import type { DataPaths } from './paths.ts'
-import { execute } from './query.ts'
-import { findBookmarkRow } from './repo.ts'
-import { mapConcurrent, USER_AGENT } from './scraper.ts'
+import { findBookmarkRow, setBookmarkHasIcon } from './repo.ts'
+import { fetchPage, mapConcurrent, USER_AGENT } from './scraper.ts'
 
 export const ICON_SIZE = 64
 export const ICON_CONCURRENCY = 4
 
 const MAX_ICON_BYTES = 1024 * 1024
 const DOWNLOAD_TIMEOUT_MS = 8000
+/** 单个书签最多试几个图标候选，避免候选多时把每个都试一遍 */
+const MAX_ICON_ATTEMPTS = 4
 
 export function iconFilePath(paths: DataPaths, bookmarkId: string): string {
   return join(paths.iconsDir, `${bookmarkId}.webp`)
@@ -64,8 +65,44 @@ export async function cacheIcon(
     return false
   }
 
-  execute(db, 'UPDATE bookmarks SET has_icon = 1 WHERE id = ?', bookmarkId)
+  // 走 setBookmarkHasIcon 而不是直接 UPDATE：它会一起刷新 updated_at，
+  // 前端靠 updated_at 变化感知"图标到位了"，缓存键才会换
+  setBookmarkHasIcon(db, bookmarkId, true)
   return true
+}
+
+/**
+ * 由一个网页地址取图标：先看页面自己声明的候选（apple-touch-icon / og:image
+ * 这类通常是 PNG/SVG），逐个试到第一个成功为止，/favicon.ico 只作最后兜底。
+ *
+ * 为什么不能只用 favicon.ico：很多站点的 .ico 里嵌的是 BMP 格式，
+ * sharp 解不了 ICO，直接下载必然失败。实测 github / 百度 / 知乎 / 掘金 / B 站
+ * 的 .ico 全是 BMP 条目。改用页面候选后 7 个抽样站点里 6 个能拿到图标，
+ * 只用 favicon.ico 时只有 1 个。
+ * 只提供 BMP 型 .ico 的站点（如百度）仍会退回首字色块。
+ */
+export async function cacheIconFromPage(
+  db: Db,
+  paths: DataPaths,
+  bookmarkId: string,
+  pageUrl: string,
+): Promise<boolean> {
+  const candidates = await collectIconCandidates(pageUrl)
+  for (const candidate of candidates.slice(0, MAX_ICON_ATTEMPTS)) {
+    if (await cacheIcon(db, paths, bookmarkId, candidate)) return true
+  }
+  return false
+}
+
+async function collectIconCandidates(pageUrl: string): Promise<string[]> {
+  const page = await fetchPage(pageUrl)
+  const fromPage = page.ok ? (page.logoCandidates ?? []) : []
+
+  const fallback = faviconSource(pageUrl)
+  if (fallback === null) return [...new Set(fromPage)]
+
+  // fetchPage 在页面没声明任何图标时也会给出 /favicon.ico，去重免得白试两次
+  return [...new Set([...fromPage, fallback])]
 }
 
 export async function deleteIcons(paths: DataPaths, bookmarkIds: readonly string[]): Promise<void> {
@@ -104,17 +141,13 @@ export interface IconJob {
 
 /** 批量抓图标，并发限制在 4，避免导入时把对端站点打爆 */
 export function scheduleIconBatch(db: Db, paths: DataPaths, jobs: readonly IconJob[]): void {
-  const pending = jobs
-    .map((job) => ({ id: job.id, source: faviconSource(job.url) }))
-    .filter((job): job is { id: string; source: string } => job.source !== null)
-
-  if (pending.length === 0) return
+  if (jobs.length === 0) return
 
   setImmediate(() => {
-    void mapConcurrent(pending, ICON_CONCURRENCY, (job) =>
-      cacheIcon(db, paths, job.id, job.source),
+    void mapConcurrent(jobs, ICON_CONCURRENCY, (job) =>
+      cacheIconFromPage(db, paths, job.id, job.url),
     ).catch(() => {
-      /* 同上 */
+      /* 每个任务内部都已兜住，这里只是保险 */
     })
   })
 }

@@ -26,10 +26,10 @@ const PUBLIC_DIR = './public'
 const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'
 const NO_CACHE = 'no-cache'
 /**
- * 图标与壁纸用固定文件名（按 id 推导），重新生成会复用同一路径，
- * 因此不设 immutable，避免客户端一年都拿旧图。
+ * 图标文件名固定（按 id 推导），但前端会带 ?v=updatedAt 请求，
+ * URL 随内容变化，所以可以放心长期不可变缓存。
  */
-const ICON_CACHE = 'public, max-age=86400'
+const ICON_CACHE = 'public, max-age=31536000, immutable'
 const WALLPAPER_CACHE = 'public, max-age=604800'
 
 export function createApp(deps: AppDeps): Hono {

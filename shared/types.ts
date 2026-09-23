@@ -17,6 +17,11 @@ export interface Bookmark {
   /** 图标是否已缓存在本站，前端据此决定显示图标还是首字色块 */
   hasIcon: boolean
   sortOrder: number
+  /**
+   * 最后修改时间（Unix ms）。图标落盘也会刷新它，
+   * 前端用 /icons/{id}.webp?v={updatedAt} 作缓存键，图标换了就能立刻感知。
+   */
+  updatedAt: number
 }
 
 export type WallpaperOrientation = 'landscape' | 'portrait'

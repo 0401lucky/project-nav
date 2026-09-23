@@ -245,7 +245,7 @@ export function normalizeUrl(s: string): string | null {
 }
 
 export async function mapConcurrent<T, R>(
-  items: T[],
+  items: readonly T[],
   limit: number,
   fn: (item: T) => Promise<R>,
 ): Promise<R[]> {

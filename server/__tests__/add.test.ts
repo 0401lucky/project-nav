@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { Settings } from '../../shared/types.ts'
+import { writeSetting } from '../lib/settings-store.ts'
 import { authedClient, createApp, json } from './helpers.ts'
 import type { ApiClient } from './helpers.ts'
 
@@ -58,5 +59,17 @@ describe('GET /add', () => {
 
     const response = await createApp(deps).request(`/add?token=${value}&url=https://a.example.com`)
     assert.equal(response.status, 302)
+  })
+
+  it('令牌被清空时，空 token 不能蒙混过关', async () => {
+    const { deps } = await authedClient()
+    // 模拟 settings 表被手改坏
+    writeSetting(deps.db, 'bookmarkletToken', '')
+
+    for (const url of ['/add', '/add?token=']) {
+      const response = await createApp(deps).request(url)
+      assert.equal(response.status, 403, url)
+      assert.equal(response.headers.get('location'), null)
+    }
   })
 })

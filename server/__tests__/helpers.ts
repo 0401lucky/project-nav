@@ -1,7 +1,7 @@
 // 测试公共装置：内存库 + 固定配置的 app，不监听端口。
 
 import { createServer } from 'node:http'
-import type { ServerResponse } from 'node:http'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createApp } from '../app.ts'
 import { createDb } from '../db.ts'
 import type { AppDeps } from '../types.ts'
@@ -97,13 +97,13 @@ export async function json<T>(response: Response): Promise<T> {
 
 /**
  * 起一个一次性 HTTP 服务供测试用，跑完自动关闭。
- * reply 里直接写响应；run 拿到的是服务根地址，自己拼路径。
+ * reply 里直接写响应（拿到 req 才能按路径分流）；run 拿到的是服务根地址。
  */
 export async function withServer(
-  reply: (res: ServerResponse) => void,
+  reply: (res: ServerResponse, req: IncomingMessage) => void,
   run: (baseUrl: string) => Promise<void>,
 ): Promise<void> {
-  const server = createServer((_req, res) => reply(res))
+  const server = createServer((req, res) => reply(res, req))
   await new Promise<void>((resolve) => {
     server.listen(0, '127.0.0.1', resolve)
   })
