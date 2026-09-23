@@ -97,3 +97,117 @@ img {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ---------------------------------------------------------------------------
+   表单与按钮基础件。面板里的表单共用，避免每个组件各写一套输入框样式。
+   --------------------------------------------------------------------------- */
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field + .field {
+  margin-top: 14px;
+}
+
+.field__label {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.field__hint {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.field__error {
+  font-size: 12px;
+  color: rgb(255 170 170);
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgb(0 0 0 / 0.3);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-3);
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: var(--accent);
+}
+
+.input:disabled,
+.textarea:disabled,
+.select:disabled {
+  opacity: 0.5;
+}
+
+.textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.select {
+  appearance: none;
+}
+
+.btn {
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--glass-card);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  transition: background var(--dur) var(--ease), filter var(--dur) var(--ease);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--glass-card-hover);
+}
+
+.btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.btn--primary {
+  font-weight: 600;
+  color: #10131a;
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+.btn--danger {
+  color: rgb(255 190 190);
+  border-color: rgb(220 90 90 / 0.45);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: rgb(220 80 80 / 0.22);
+}
+
+.btn-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import GroupPanel from '@/components/home/GroupPanel.vue'
 import { useFilter } from '@/composables/useFilter'
+import { useHomeContext } from '@/composables/homeContext'
 import { useDataStore } from '@/stores/data'
 
 const data = useDataStore()
 const { visibleByGroup } = useFilter()
+const { drag } = useHomeContext()
 </script>
 
 <template>
@@ -14,7 +16,16 @@ const { visibleByGroup } = useFilter()
   </div>
 
   <div v-else class="panels">
-    <GroupPanel v-for="entry in visibleByGroup" :key="entry.group.id" :entry="entry" />
+    <div
+      v-for="(entry, index) in visibleByGroup"
+      :key="entry.group.id"
+      class="panels__cell"
+      :class="{ 'is-drop-before': drag.isGroupDropBefore(index) }"
+      @dragover.prevent="drag.overGroup($event, index)"
+      @drop.prevent="drag.dropGroup()"
+    >
+      <GroupPanel :entry="entry" :group-index="index" />
+    </div>
   </div>
 </template>
 
@@ -22,6 +33,22 @@ const { visibleByGroup } = useFilter()
 .panels {
   display: grid;
   gap: 14px;
+}
+
+.panels__cell {
+  position: relative;
+}
+
+/* 分组排序的落点线横跨整块面板，和卡片那条竖线区分开 */
+.panels__cell.is-drop-before::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 .empty {

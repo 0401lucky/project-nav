@@ -1,7 +1,14 @@
 // 唯一的 HTTP 出口。组件不直接 fetch：
 // 统一在这里处理错误形状、204 空响应和 401。
 
-import type { ApiError as ApiErrorBody, BootstrapResponse } from '@/types'
+import type {
+  ApiError as ApiErrorBody,
+  Bookmark,
+  BootstrapResponse,
+  Group,
+  MetaResponse,
+  Settings,
+} from '@/types'
 
 export class UnauthorizedError extends Error {
   constructor() {
@@ -38,10 +45,12 @@ async function request<T>(
   body?: unknown,
   options: RequestOptions = {},
 ): Promise<T> {
+  // FormData 交给运行时自己设 Content-Type，才能带上 multipart 边界
+  const isForm = body instanceof FormData
   const response = await fetch(path, {
     method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: body === undefined || isForm ? undefined : { 'Content-Type': 'application/json' },
+    body: isForm ? body : body === undefined ? undefined : JSON.stringify(body),
   })
 
   if (response.status === 401 && options.sessionExpiryOn401 !== false) {
@@ -69,9 +78,49 @@ async function readErrorBody(response: Response): Promise<ApiErrorBody | null> {
   }
 }
 
+export interface BookmarkInput {
+  groupId: string
+  title: string
+  url: string
+  description?: string | null
+  iconUrl?: string | null
+}
+
+export type BookmarkPatch = Partial<BookmarkInput>
+
+export interface GroupInput {
+  name: string
+  icon?: string | null
+}
+
 export const api = {
   bootstrap: () => request<BootstrapResponse>('GET', '/api/bootstrap'),
+
   login: (password: string) =>
     request<void>('POST', '/api/auth/login', { password }, { sessionExpiryOn401: false }),
+
   logout: () => request<void>('POST', '/api/auth/logout'),
+
+  meta: (url: string) => request<MetaResponse>('POST', '/api/meta', { url }),
+
+  createGroup: (input: GroupInput) => request<Group>('POST', '/api/groups', input),
+  updateGroup: (id: string, patch: Partial<GroupInput>) =>
+    request<Group>('PATCH', `/api/groups/${encodeURIComponent(id)}`, patch),
+  deleteGroup: (id: string, moveTo?: string) => {
+    const query = moveTo === undefined ? '' : `?moveTo=${encodeURIComponent(moveTo)}`
+    return request<void>('DELETE', `/api/groups/${encodeURIComponent(id)}${query}`)
+  },
+  orderGroups: (ids: string[]) => request<void>('PUT', '/api/groups/order', { ids }),
+
+  createBookmark: (input: BookmarkInput) => request<Bookmark>('POST', '/api/bookmarks', input),
+  updateBookmark: (id: string, patch: BookmarkPatch) =>
+    request<Bookmark>('PATCH', `/api/bookmarks/${encodeURIComponent(id)}`, patch),
+  deleteBookmark: (id: string) =>
+    request<void>('DELETE', `/api/bookmarks/${encodeURIComponent(id)}`),
+  orderBookmarks: (groupId: string, ids: string[]) =>
+    request<void>('PUT', '/api/bookmarks/order', { groupId, ids }),
+
+  settings: () => request<Settings>('GET', '/api/settings'),
+  patchSettings: (patch: Partial<Settings>) =>
+    request<Settings>('PATCH', '/api/settings', patch),
 }
