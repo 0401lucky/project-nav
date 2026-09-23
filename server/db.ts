@@ -4,12 +4,11 @@
 import { randomBytes } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { newId } from './lib/id.ts'
+import { SORT_STEP } from './lib/order.ts'
 import { count, execute } from './lib/query.ts'
 import { ensureSettingDefaults } from './lib/settings-store.ts'
 import type { Db } from './types.ts'
 
-/** 排序间隔：插入取中值，用尽时整组重编号 */
-export const SORT_STEP = 1024
 export const DEFAULT_GROUP_NAME = '常用'
 export const DEFAULT_GROUP_ICON = '⭐'
 

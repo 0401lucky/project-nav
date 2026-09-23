@@ -227,7 +227,9 @@ export function normalizeUrl(s: string): string | null {
   if (!/^https?:\/\//i.test(v)) v = 'https://' + v
   try {
     const u = new URL(v)
-    if (!u.host || !u.host.includes('.')) return null
+    if (!u.host) return null
+    // 只有点号域名和 localhost 才当有效输入，避免把「abc」这类随手输入当成网址
+    if (!u.host.includes('.') && u.host !== 'localhost') return null
     return u.toString().replace(/\/$/, '')
   } catch {
     return null

@@ -25,3 +25,16 @@ export function count(db: Db, sql: string, ...params: SQLInputValue[]): number {
   const row = queryOne<{ n: number }>(db, sql, ...params)
   return row?.n ?? 0
 }
+
+/** 多条写操作包在一个事务里，中途失败整批回滚 */
+export function transaction<T>(db: Db, fn: () => T): T {
+  db.exec('BEGIN')
+  try {
+    const result = fn()
+    db.exec('COMMIT')
+    return result
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}

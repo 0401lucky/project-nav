@@ -51,4 +51,38 @@ export async function login(deps: AppDeps, password = TEST_PASSWORD): Promise<st
   return cookiePair(response)
 }
 
+export interface ApiClient {
+  get(path: string): Promise<Response>
+  post(path: string, body?: unknown): Promise<Response>
+  put(path: string, body?: unknown): Promise<Response>
+  patch(path: string, body?: unknown): Promise<Response>
+  del(path: string): Promise<Response>
+}
+
+export function apiClient(deps: AppDeps, cookie: string): ApiClient {
+  const app = createApp(deps)
+  const headers = { 'Content-Type': 'application/json', Cookie: cookie }
+  const send = async (method: string, path: string, body?: unknown): Promise<Response> =>
+    await app.request(path, body === undefined ? { method, headers } : { method, headers, body: JSON.stringify(body) })
+
+  return {
+    get: (path) => send('GET', path),
+    post: (path, body) => send('POST', path, body),
+    put: (path, body) => send('PUT', path, body),
+    patch: (path, body) => send('PATCH', path, body),
+    del: (path) => send('DELETE', path),
+  }
+}
+
+/** 登录好的客户端，配合内存库使用 */
+export async function authedClient(): Promise<{ deps: AppDeps; api: ApiClient }> {
+  const deps = testDeps()
+  const api = apiClient(deps, await login(deps))
+  return { deps, api }
+}
+
+export async function json<T>(response: Response): Promise<T> {
+  return (await response.json()) as T
+}
+
 export { createApp }

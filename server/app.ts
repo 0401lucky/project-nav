@@ -7,7 +7,11 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import type { MiddlewareHandler } from 'hono'
 import { requireAuth } from './auth.ts'
 import { authRoutes } from './routes/auth.ts'
+import { bookmarkRoutes } from './routes/bookmarks.ts'
 import { bootstrapRoutes } from './routes/bootstrap.ts'
+import { groupRoutes } from './routes/groups.ts'
+import { settingsRoutes } from './routes/settings.ts'
+import { ValidationError } from './types.ts'
 import type { AppDeps } from './types.ts'
 
 /** vite 构建产物目录，与 Dockerfile 的 WORKDIR 保持一致 */
@@ -34,6 +38,9 @@ export function createApp(deps: AppDeps): Hono {
   // 注册位置在 auth 路由之后：/api/auth/* 先被上面的 handler 消费掉
   app.use('/api/*', requireAuth(deps.config.sessionSecret))
   app.route('/api/bootstrap', bootstrapRoutes(deps))
+  app.route('/api/groups', groupRoutes(deps))
+  app.route('/api/bookmarks', bookmarkRoutes(deps))
+  app.route('/api/settings', settingsRoutes(deps))
 
   const iconHandler = staticAt(deps.paths.root, () => ICON_CACHE)
   if (iconHandler) app.get('/icons/*', iconHandler)
@@ -50,6 +57,15 @@ export function createApp(deps: AppDeps): Hono {
   if (distHandler) app.get('/*', distHandler)
 
   app.notFound((c) => c.json({ error: '没有这个地址' }, 404))
+
+  // 入参校验失败统一转 400，路由里就不用每个都写 try/catch
+  app.onError((error, c) => {
+    if (error instanceof ValidationError) {
+      return c.json({ error: error.message }, 400)
+    }
+    console.error('[请求出错]', error)
+    return c.json({ error: '服务器内部错误' }, 500)
+  })
 
   return app
 }
