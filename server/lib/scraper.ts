@@ -1,10 +1,9 @@
-// 抓页面 + 元数据提取（供 AI 工作台与 favicon 接口共用）
+// 抓页面 + 元数据提取（供 /api/meta 与图标下载共用）
+// 由旧 functions/_lib/scraper.ts 搬入，去掉 AI 工作台用的 bodyText 正文抽取
 
 const FETCH_TIMEOUT_MS = 8000
 const HTML_BYTES_LIMIT = 256 * 1024
-const SUMMARY_TEXT_LIMIT = 2000
-const UA =
-  'Mozilla/5.0 (compatible; AuroraNavBot/1.0; +https://nav-aurora.pages.dev)'
+const UA = 'Mozilla/5.0 (compatible; BookmarkNavBot/1.0)'
 
 export interface FetchedPage {
   url: string
@@ -18,7 +17,6 @@ export interface FetchedPage {
   twitterImage?: string
   /** 所有 logo / favicon 候选（已解析为绝对 URL，按优先级排序） */
   logoCandidates?: string[]
-  bodyText?: string
   errorMessage?: string
 }
 
@@ -91,7 +89,10 @@ async function readBoundedText(
   return new TextDecoder('utf-8').decode(merged)
 }
 
-function extractMeta(html: string, baseUrl: string): Partial<FetchedPage> {
+export function extractMeta(
+  html: string,
+  baseUrl: string,
+): Partial<FetchedPage> {
   const out: Partial<FetchedPage> = {}
   out.title = matchFirst(html, /<title[^>]*>([\s\S]*?)<\/title>/i)
   out.description = matchAttr(html, [
@@ -115,16 +116,6 @@ function extractMeta(html: string, baseUrl: string): Partial<FetchedPage> {
     /<meta[^>]+content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i,
   ])
   out.logoCandidates = extractLogoCandidates(html, baseUrl, out)
-
-  const stripped = html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  out.bodyText = stripped.slice(0, SUMMARY_TEXT_LIMIT)
   return out
 }
 

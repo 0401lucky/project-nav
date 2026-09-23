@@ -1,14 +1,20 @@
 node_modules/
 dist/
-.wrangler/
+dist-server/
 .playwright-mcp/
-.dev.vars
+playwright-report/
+test-results/
+
+# 运行时数据：SQLite、图标缓存、上传壁纸。备份这个目录即可恢复整站
+data/
+
+# 壁纸生成用原始大图，不打包不进镜像
+assets/wallpapers-src/
+
 .env
 .env.local
 *.log
 *.tsbuildinfo
-vite.config.js
-vite.config.d.ts
 .DS_Store
 .vscode/
 .idea/
