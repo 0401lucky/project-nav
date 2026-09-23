@@ -22,5 +22,9 @@
   "parent": null,
   "relatedFiles": [],
   "notes": "",
-  "meta": {}
+  "meta": {
+    "lighthouse-performance": "97",
+    "lighthouse-metrics": "FCP 1.7s / LCP 2.4s / TBT 0ms / CLS 0（首页带会话实测，Chrome headless）",
+    "bundle-gzip-kb": "JS 47.7 / CSS 4.2（预算 80）"
+  }
 }

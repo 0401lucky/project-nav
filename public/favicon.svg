@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="书签">
+  <rect width="32" height="32" rx="7" fill="#12151b" />
+  <path
+    d="M11 6h10a2.5 2.5 0 0 1 2.5 2.5V26L16 21.4 8.5 26V8.5A2.5 2.5 0 0 1 11 6Z"
+    fill="#e8c87a"
+  />
+</svg>

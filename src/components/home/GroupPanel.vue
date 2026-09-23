@@ -203,4 +203,18 @@ function onCardRemove(bookmark: Bookmark): void {
   border-radius: 2px;
   background: var(--accent);
 }
+@media (max-width: 640px) {
+  /* 小屏固定 3 列，不再按容器宽度自动铺开 */
+  .panel__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .panel__handle {
+    display: none;
+  }
+
+  .panel {
+    padding: 11px;
+  }
+}
 </style>

@@ -26,6 +26,21 @@ onMounted(() => input.value?.focus())
       <h1 class="login__title">书签</h1>
       <p class="login__hint">{{ auth.locked ? '尝试次数过多' : '输入密码进入' }}</p>
 
+      <!--
+        给密码管理器一个可关联的用户名。本站只有一个密码，值固定且不可编辑，
+        所以不给焦点、对读屏隐藏，纯粹是为了让凭据能正确保存。
+      -->
+      <input
+        class="sr-only"
+        type="text"
+        name="username"
+        autocomplete="username"
+        value="bookmark-nav"
+        readonly
+        tabindex="-1"
+        aria-hidden="true"
+      />
+
       <input
         ref="input"
         v-model="password"

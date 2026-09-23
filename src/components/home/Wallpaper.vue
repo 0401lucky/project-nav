@@ -1,9 +1,24 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import type { Wallpaper } from '@/types'
 
 const settings = useSettingsStore()
+
+/**
+ * 屏幕方向。LQIP 只渲染需要的那一层：
+ * 渲染两层再用 CSS 的 display:none 隐藏是不行的——内联的 background-image
+ * 会在样式计算之前就发起加载，横版占位图照样会被请求（实测过）。
+ * display:none 只挡住绘制，挡不住网络请求。
+ */
+const orientationQuery = window.matchMedia('(orientation: portrait)')
+const portraitNow = ref(orientationQuery.matches)
+
+function syncOrientation(event: MediaQueryList | MediaQueryListEvent): void {
+  portraitNow.value = event.matches
+}
+onMounted(() => orientationQuery.addEventListener('change', syncOrientation))
+onBeforeUnmount(() => orientationQuery.removeEventListener('change', syncOrientation))
 
 /** 大图加载完之前先显示 LQIP，避免背景闪一下 */
 const loaded = ref(false)
@@ -48,9 +63,24 @@ const fallbackSrc = computed(() => {
   return `/wallpapers/${wallpaper.id}-${smallest}.webp`
 })
 
-const lqipStyle = computed(() =>
-  base.value === null ? {} : { backgroundImage: `url(/wallpapers/${base.value.id}-lqip.webp)` },
-)
+/**
+ * 占位图必须跟着主图的方向走。
+ * 之前只有一层、固定用 base（横版）的 LQIP，竖屏下就出现「模糊底是横版、
+ * 主图是竖版」的方向错配——32px 模糊看不出来，但确实是错的，
+ * 而且会白白多发一个横版请求。
+ */
+function lqipUrl(wallpaper: Wallpaper | null): string {
+  return wallpaper === null ? '' : `url(/wallpapers/${wallpaper.id}-lqip.webp)`
+}
+
+/** 竖屏且有竖版配对时用竖版的占位图，否则用默认源那层 */
+const usePortraitLqip = computed(() => portraitNow.value && portrait.value !== null)
+
+const lqipStyle = computed(() => {
+  const target = usePortraitLqip.value ? portrait.value : base.value
+  const url = lqipUrl(target)
+  return url === '' ? {} : { backgroundImage: url }
+})
 </script>
 
 <template>

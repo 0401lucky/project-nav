@@ -211,3 +211,19 @@ img {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* ---------------------------------------------------------------------------
+   动效偏好。tokens 里把 --dur 压到 1ms 只覆盖用了变量的地方，
+   Wallpaper 的淡入之类写死了时长，所以再兜一层全局规则。
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -45,3 +45,15 @@
     --dur: 1ms;
   }
 }
+
+/* 小屏：留白收紧、圆角略小，模糊降一档换帧率 */
+@media (max-width: 640px) {
+  :root {
+    --page-x: 14px;
+    --gap: 8px;
+    --topbar-h: 54px;
+    --r-panel: 16px;
+    --r-card: 12px;
+    --blur-panel: 14px;
+  }
+}

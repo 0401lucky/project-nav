@@ -334,4 +334,29 @@ onBeforeUnmount(() => {
 
 .card-menu__item--danger:hover {
   background: rgb(220 80 80 / 0.22);
-}</style>
+}
+@media (max-width: 640px) {
+  /* 触屏没有 hover，手柄永远不会显形，直接不占位（prd 把移动端拖拽列为不在范围内） */
+  .card__handle {
+    display: none;
+  }
+
+  /* 竖排：3 列时卡片只有约 100px 宽，横排会把标题挤没。
+     菜单按钮改为浮在右上角，不再参与横向布局。 */
+  .card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  /* 靠 hover 显形的按钮在触屏上永远点不到，必须常显 */
+  .card__more {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    opacity: 1;
+    background: rgb(0 0 0 / 0.35);
+  }
+}
+</style>
