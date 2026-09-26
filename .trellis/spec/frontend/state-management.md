@@ -136,6 +136,16 @@ const byGroup = computed<GroupWithBookmarks[]>(() => { /* ... */ })
 
 重排的纯逻辑在 `composables/drag.ts`，改这部分先读它顶部的注释。
 
+### 后台任务靠轮询单条感知
+
+新增书签时图标在服务端后台下载（`scheduleIconCache`），接口不通知完成。`createBookmark`
+在带了 `iconUrl` 时调用 `waitForIcon(id)`：隔 2s、4s、8s 各 `GET /api/bookmarks/:id` 一次，
+`hasIcon` 变 true 就 `replaceBookmark(latest)`；书签已被删或请求失败就停，不提示用户。
+
+同步的图标接口（重抓 / 上传 / 公共服务）返回 `{ bookmark, error? }`，拿到后同样走
+`replaceBookmark`，**不要**整表重拉；只有批量补抓这种一次改很多条的才用 `reloadBookmarks()`。
+图标契约的服务端部分见 [../backend/icon-pipeline.md](../backend/icon-pipeline.md)。
+
 ---
 
 ## 401 的处理
