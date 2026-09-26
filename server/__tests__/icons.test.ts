@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, describe, it } from 'node:test'
@@ -7,16 +9,19 @@ import sharp from 'sharp'
 import { createDb } from '../db.ts'
 import {
   cacheIcon,
+  cacheIconFromBuffer,
   cacheIconFromPage,
   deleteIcons,
   faviconSource,
   ICON_SIZE,
   iconFilePath,
   iconPath,
+  refetchMissingIcons,
 } from '../lib/icons.ts'
 import type { DataPaths } from '../lib/paths.ts'
 import { createBookmark, listGroupRows } from '../lib/repo.ts'
 import { withServer } from './helpers.ts'
+import { solidIco } from './ico-fixtures.ts'
 import type { Db } from '../types.ts'
 
 interface Harness {
@@ -64,29 +69,6 @@ function updatedAtOf(db: Db, bookmarkId: string): number {
   return row?.updated_at ?? 0
 }
 
-/**
- * 结构与真实 ICO 一致的假文件：头部 + 一条 BMP 条目。
- * 实测 github / 百度 / 知乎 / 掘金 / B 站的 favicon.ico 都是这种内嵌 BMP 的格式，
- * sharp（libvips）解不了 ICO 容器。
- */
-function fakeIco(): Buffer {
-  const header = Buffer.alloc(6)
-  header.writeUInt16LE(0, 0)
-  header.writeUInt16LE(1, 2)
-  header.writeUInt16LE(1, 4)
-
-  const entry = Buffer.alloc(16)
-  entry[0] = 32
-  entry[1] = 32
-  entry.writeUInt16LE(1, 4)
-  entry.writeUInt16LE(32, 6)
-  const payload = Buffer.alloc(32, 0x22)
-  entry.writeUInt32LE(payload.length, 8)
-  entry.writeUInt32LE(6 + 16, 12)
-
-  return Buffer.concat([header, entry, payload])
-}
-
 after(() => {
   for (const dir of cleanups) {
     try {
@@ -126,7 +108,7 @@ describe('cacheIcon', () => {
         res.end(source)
       },
       async (url) => {
-        assert.equal(await cacheIcon(db, paths, bookmarkId, url), true)
+        assert.equal((await cacheIcon(db, paths, bookmarkId, url)).ok, true)
       },
     )
 
@@ -149,7 +131,7 @@ describe('cacheIcon', () => {
         res.end('<html>不是图片</html>')
       },
       async (url) => {
-        assert.equal(await cacheIcon(db, paths, bookmarkId, url), false)
+        assert.equal((await cacheIcon(db, paths, bookmarkId, url)).ok, false)
       },
     )
 
@@ -167,7 +149,7 @@ describe('cacheIcon', () => {
         res.end()
       },
       async (url) => {
-        assert.equal(await cacheIcon(db, paths, bookmarkId, url), false)
+        assert.equal((await cacheIcon(db, paths, bookmarkId, url)).ok, false)
       },
     )
 
@@ -184,7 +166,7 @@ describe('cacheIcon', () => {
         res.end(Buffer.from('这不是一张 PNG'))
       },
       async (url) => {
-        assert.equal(await cacheIcon(db, paths, bookmarkId, url), false)
+        assert.equal((await cacheIcon(db, paths, bookmarkId, url)).ok, false)
       },
     )
 
@@ -203,7 +185,7 @@ describe('cacheIcon', () => {
         res.end(huge)
       },
       async (url) => {
-        assert.equal(await cacheIcon(db, paths, bookmarkId, url), false)
+        assert.equal((await cacheIcon(db, paths, bookmarkId, url)).ok, false)
       },
     )
 
@@ -224,7 +206,7 @@ describe('cacheIcon', () => {
         res.end(source)
       },
       async (url) => {
-        assert.equal(await cacheIcon(db, paths, 'not-exist', url), false)
+        assert.equal((await cacheIcon(db, paths, 'not-exist', url)).ok, false)
       },
     )
 
@@ -234,14 +216,14 @@ describe('cacheIcon', () => {
   it('连不上时返回 false 而不是抛错', async () => {
     const { db, paths } = harness()
     const bookmarkId = addBookmark(db)
-    assert.equal(await cacheIcon(db, paths, bookmarkId, 'http://127.0.0.1:1/favicon.ico'), false)
+    assert.equal((await cacheIcon(db, paths, bookmarkId, 'http://127.0.0.1:1/favicon.ico')).ok, false)
     assert.equal(hasIcon(db, bookmarkId), false)
   })
 
-  it('直接给 favicon.ico 时放弃：sharp 不支持 ICO 容器', async () => {
+  it('直接给 favicon.ico（32 位 BMP 条目）也能解出来', async () => {
     const { db, paths } = harness()
     const bookmarkId = addBookmark(db)
-    const ico = fakeIco()
+    const ico = solidIco(32, [0x22, 0x88, 0xee, 255])
 
     await withServer(
       (res) => {
@@ -249,12 +231,12 @@ describe('cacheIcon', () => {
         res.end(ico)
       },
       async (base) => {
-        assert.equal(await cacheIcon(db, paths, bookmarkId, base), false)
+        assert.equal((await cacheIcon(db, paths, bookmarkId, base)).ok, true)
       },
     )
 
-    assert.equal(hasIcon(db, bookmarkId), false)
-    assert.ok(!existsSync(iconFilePath(paths, bookmarkId)))
+    assert.equal(hasIcon(db, bookmarkId), true)
+    assert.ok(existsSync(iconFilePath(paths, bookmarkId)))
   })
 
   it('图标落盘会刷新 updated_at，前端才能靠它感知图标换了', async () => {
@@ -272,7 +254,7 @@ describe('cacheIcon', () => {
         res.end(png)
       },
       async (base) => {
-        assert.equal(await cacheIcon(db, paths, bookmarkId, base), true)
+        assert.equal((await cacheIcon(db, paths, bookmarkId, base)).ok, true)
       },
     )
 
@@ -289,7 +271,7 @@ describe('cacheIconFromPage', () => {
     })
       .png()
       .toBuffer()
-    const ico = fakeIco()
+    const ico = solidIco(32, [0x22, 0x88, 0xee, 255])
 
     await withServer(
       (res, req) => {
@@ -310,7 +292,7 @@ describe('cacheIconFromPage', () => {
         )
       },
       async (base) => {
-        assert.equal(await cacheIconFromPage(db, paths, bookmarkId, base), true)
+        assert.equal((await cacheIconFromPage(db, paths, bookmarkId, base)).ok, true)
       },
     )
 
@@ -320,10 +302,10 @@ describe('cacheIconFromPage', () => {
     assert.equal(meta.width, ICON_SIZE)
   })
 
-  it('页面只提供 ICO 时放弃，退回首页首字色块', async () => {
+  it('页面只提供 ICO 时也能拿到图标', async () => {
     const { db, paths } = harness()
     const bookmarkId = addBookmark(db)
-    const ico = fakeIco()
+    const ico = solidIco(32, [0x22, 0x88, 0xee, 255])
 
     await withServer(
       (res, req) => {
@@ -336,12 +318,12 @@ describe('cacheIconFromPage', () => {
         res.end('<html><head><title>没有图标声明</title></head></html>')
       },
       async (base) => {
-        assert.equal(await cacheIconFromPage(db, paths, bookmarkId, base), false)
+        assert.equal((await cacheIconFromPage(db, paths, bookmarkId, base)).ok, true)
       },
     )
 
-    assert.equal(hasIcon(db, bookmarkId), false)
-    assert.ok(!existsSync(iconFilePath(paths, bookmarkId)))
+    assert.equal(hasIcon(db, bookmarkId), true)
+    assert.ok(existsSync(iconFilePath(paths, bookmarkId)))
   })
 
   it('页面抓不到时仍会试站点根目录，覆盖「.ico 其实是 PNG」的站点', async () => {
@@ -364,7 +346,7 @@ describe('cacheIconFromPage', () => {
         res.end()
       },
       async (base) => {
-        assert.equal(await cacheIconFromPage(db, paths, bookmarkId, base), true)
+        assert.equal((await cacheIconFromPage(db, paths, bookmarkId, base)).ok, true)
       },
     )
 
@@ -395,5 +377,122 @@ describe('deleteIcons', () => {
 
     await deleteIcons(paths, [bookmarkId, 'never-existed'])
     assert.ok(!existsSync(iconFilePath(paths, bookmarkId)))
+  })
+})
+
+describe('图标解码与来源', () => {
+  it('按文件头识别：Content-Type 写 png、实际给 ICO 也能解', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const ico = solidIco(16, [200, 50, 50, 255])
+
+    await withServer(
+      (res) => {
+        res.writeHead(200, { 'Content-Type': 'image/png' })
+        res.end(ico)
+      },
+      async (url) => {
+        assert.equal((await cacheIcon(db, paths, bookmarkId, url)).ok, true)
+      },
+    )
+    assert.equal(hasIcon(db, bookmarkId), true)
+  })
+
+  it('带文字的 SVG 被跳过，并给出原因', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const svg = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='20'>雨</text></svg>"
+    const result = await cacheIcon(db, paths, bookmarkId, svg)
+    assert.equal(result.ok, false)
+    assert.match(result.ok ? '' : result.reason, /文字/)
+  })
+
+  it('不含文字的 data URI SVG 能直接落盘', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const svg = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='%23f00'/></svg>"
+    assert.equal((await cacheIcon(db, paths, bookmarkId, svg)).ok, true)
+  })
+
+  it('首选候选失败时退回页面候选', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const png = await sharp({ create: { width: 16, height: 16, channels: 3, background: '#0a0' } }).png().toBuffer()
+
+    await withServer(
+      (res, req) => {
+        if (req.url === '/good.png') {
+          res.writeHead(200, { 'Content-Type': 'image/png' })
+          res.end(png)
+          return
+        }
+        if (req.url === '/') {
+          res.writeHead(200, { 'Content-Type': 'text/html' })
+          res.end('<link rel="icon" href="/good.png">')
+          return
+        }
+        res.writeHead(404)
+        res.end()
+      },
+      async (base) => {
+        const result = await cacheIconFromPage(db, paths, bookmarkId, base + '/', base + '/broken.png')
+        assert.equal(result.ok, true)
+      },
+    )
+  })
+
+  it('页面打不开时返回页面的原因', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    await withServer(
+      (res) => {
+        res.writeHead(404)
+        res.end()
+      },
+      async (base) => {
+        const result = await cacheIconFromPage(db, paths, bookmarkId, base + '/')
+        assert.deepEqual(result, { ok: false, reason: '页面不存在（HTTP 404）' })
+      },
+    )
+  })
+
+  it('Cloudflare 质询被识别出来', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    await withServer(
+      (res) => {
+        res.writeHead(403, { 'cf-mitigated': 'challenge' })
+        res.end()
+      },
+      async (base) => {
+        const result = await cacheIconFromPage(db, paths, bookmarkId, base + '/')
+        assert.match(result.ok ? '' : result.reason, /Cloudflare/)
+      },
+    )
+  })
+
+  it('上传的图片走同一套转码', async () => {
+    const { db, paths } = harness()
+    const bookmarkId = addBookmark(db)
+    const jpeg = await sharp({ create: { width: 100, height: 50, channels: 3, background: '#123' } }).jpeg().toBuffer()
+    assert.equal((await cacheIconFromBuffer(db, paths, bookmarkId, jpeg)).ok, true)
+    const meta = await sharp(iconFilePath(paths, bookmarkId)).metadata()
+    assert.equal(meta.width, ICON_SIZE)
+    assert.equal((await cacheIconFromBuffer(db, paths, bookmarkId, Buffer.from('hi'))).ok, false)
+  })
+
+  it('补抓只处理没有图标的书签，并汇总失败原因', async () => {
+    const { db, paths } = harness()
+    const groupId = listGroupRows(db)[0]!.id
+    const server = createServer()
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const port = (server.address() as AddressInfo).port
+    await new Promise((resolve) => server.close(resolve))
+    const dead = createBookmark(db, { groupId, title: '失效站', url: `http://127.0.0.1:${port}/`, description: null })
+    const report = await refetchMissingIcons(db, paths)
+    assert.equal(report.total, 1)
+    assert.equal(report.succeeded, 0)
+    assert.equal(report.failed[0]!.id, dead.id)
+    assert.equal(report.failed[0]!.reason, '连接被拒绝')
   })
 })

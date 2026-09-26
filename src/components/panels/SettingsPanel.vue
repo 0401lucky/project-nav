@@ -2,13 +2,16 @@
 import { computed, ref } from 'vue'
 import ImportSection from '@/components/panels/ImportSection.vue'
 import WallpaperPicker from '@/components/panels/WallpaperPicker.vue'
+import { api, describeError } from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import { useDataStore } from '@/stores/data'
 import { useSettingsStore } from '@/stores/settings'
-import type { SearchEngine } from '@/types'
+import type { MissingIconReport, SearchEngine } from '@/types'
 
 const emit = defineEmits<{ logout: []; imported: [] }>()
 
 const settings = useSettingsStore()
+const data = useDataStore()
 const toast = useToast()
 
 const PRESETS: SearchEngine[] = [
@@ -64,6 +67,24 @@ const bookmarklet = computed(() => {
     `&url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)`
   )
 })
+
+const missingIcons = computed(() => data.bookmarks.filter((item) => !item.hasIcon).length)
+const repairing = ref(false)
+const repairReport = ref<MissingIconReport | null>(null)
+
+/** 同步等服务端逐条抓完，几十条大约一分钟 */
+async function repairIcons(): Promise<void> {
+  repairing.value = true
+  repairReport.value = null
+  try {
+    repairReport.value = await api.refetchMissingIcons()
+    await data.reloadBookmarks()
+  } catch (error) {
+    toast.error(describeError(error))
+  } finally {
+    repairing.value = false
+  }
+}
 </script>
 
 <template>
@@ -141,6 +162,30 @@ const bookmarklet = computed(() => {
       <div class="bookmarklet">
         <!-- 点它会在这里执行 javascript:，所以拦住默认行为，只让拖拽生效 -->
         <a class="bookmarklet__link" :href="bookmarklet" draggable="true" @click.prevent>＋ 存到书签</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section__title">图标</h3>
+      <div class="repair">
+        <p class="field__hint">
+          {{ missingIcons === 0 ? '所有书签都有图标' : `有 ${missingIcons} 个书签还没有图标，可以让服务器再抓一次` }}
+        </p>
+        <button class="btn" type="button" :disabled="repairing || missingIcons === 0" @click="repairIcons">
+          {{ repairing ? '正在补抓…' : '补抓缺失图标' }}
+        </button>
+      </div>
+      <div v-if="repairReport" class="repair__report" role="status">
+        <p>补抓 {{ repairReport.total }} 个：成功 {{ repairReport.succeeded }}，失败 {{ repairReport.failed.length }}</p>
+        <ul v-if="repairReport.failed.length > 0" class="repair__list">
+          <li v-for="item in repairReport.failed" :key="item.id">
+            <span class="repair__name">{{ item.title }}</span>
+            <span class="repair__reason">{{ item.reason }}</span>
+          </li>
+        </ul>
+        <p v-if="repairReport.failed.length > 0" class="field__hint">
+          失败的可以在书签的「编辑」里上传图片，或点「从公共服务获取」
+        </p>
       </div>
     </section>
 
@@ -254,5 +299,46 @@ const bookmarklet = computed(() => {
 
 .bookmarklet__link:hover {
   background: var(--glass-card-hover);
+}
+
+.repair {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.repair .btn {
+  flex: 0 0 auto;
+}
+
+.repair__report {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.repair__list {
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  list-style: none;
+  background: rgb(0 0 0 / 0.2);
+  border-radius: 10px;
+}
+
+.repair__list li {
+  display: grid;
+  gap: 1px;
+}
+
+.repair__name {
+  color: var(--text);
+}
+
+.repair__reason {
+  color: var(--text-3);
 }
 </style>

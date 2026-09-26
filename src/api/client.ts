@@ -6,8 +6,10 @@ import type {
   Bookmark,
   BootstrapResponse,
   Group,
+  IconRefreshResponse,
   ImportResult,
   MetaResponse,
+  MissingIconReport,
   Settings,
   Wallpaper,
 } from '@/types'
@@ -126,6 +128,18 @@ export const api = {
     request<Bookmark>('PATCH', `/api/bookmarks/${encodeURIComponent(id)}`, patch),
   deleteBookmark: (id: string) =>
     request<void>('DELETE', `/api/bookmarks/${encodeURIComponent(id)}`),
+  getBookmark: (id: string) => request<Bookmark>('GET', `/api/bookmarks/${encodeURIComponent(id)}`),
+  refetchIcon: (id: string) =>
+    request<IconRefreshResponse>('POST', `/api/bookmarks/${encodeURIComponent(id)}/icon/refetch`),
+  /** 会把网址发给第三方图标服务，只能由用户点击触发 */
+  publicIcon: (id: string) =>
+    request<IconRefreshResponse>('POST', `/api/bookmarks/${encodeURIComponent(id)}/icon/public`),
+  uploadIcon: (id: string, file: Blob) => {
+    const form = new FormData()
+    form.set('file', file)
+    return request<IconRefreshResponse>('PUT', `/api/bookmarks/${encodeURIComponent(id)}/icon`, form)
+  },
+  refetchMissingIcons: () => request<MissingIconReport>('POST', '/api/bookmarks/icons/refetch-missing'),
   orderBookmarks: (groupId: string, ids: string[]) =>
     request<void>('PUT', '/api/bookmarks/order', { groupId, ids }),
 

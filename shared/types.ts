@@ -79,3 +79,21 @@ export interface ImportResult {
   groups: number
   bookmarks: number
 }
+
+/** 编辑面板里重抓 / 上传 / 公共服务的结果：失败时 bookmark 保持原样，error 给出原因 */
+export interface IconRefreshResponse {
+  bookmark: Bookmark
+  error?: string
+}
+
+export interface MissingIconFailure {
+  id: string
+  title: string
+  reason: string
+}
+
+export interface MissingIconReport {
+  total: number
+  succeeded: number
+  failed: MissingIconFailure[]
+}

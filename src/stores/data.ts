@@ -170,11 +170,43 @@ export const useDataStore = defineStore('data', () => {
       const created = await api.createBookmark(input)
       // 服务端把它追加在所属分组末尾，全局数组尾部插入能保持组内相对顺序
       bookmarks.value = [...bookmarks.value, created]
+      if (typeof input.iconUrl === 'string') void waitForIcon(created.id)
       return created
     } catch (error) {
       handleFailure(error, snap)
       return null
     }
+  }
+
+  /** 只换一条书签的内容，不动位置；图标状态变化走这里 */
+  function replaceBookmark(next: Bookmark): void {
+    bookmarks.value = bookmarks.value.map((item) => (item.id === next.id ? next : item))
+  }
+
+  /**
+   * 图标在服务端后台下载，接口不会通知完成。
+   * 隔 2s、4s、8s 各查一次，拿到就换上；都没拿到就保持首字色块，不打扰用户。
+   */
+  async function waitForIcon(id: string): Promise<void> {
+    for (const delay of [2000, 4000, 8000]) {
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      if (!bookmarks.value.some((item) => item.id === id)) return
+      try {
+        const latest = await api.getBookmark(id)
+        if (latest.hasIcon) {
+          replaceBookmark(latest)
+          return
+        }
+      } catch {
+        return
+      }
+    }
+  }
+
+  /** 补抓之后整体刷新书签列表：成功的那些图标状态都变了 */
+  async function reloadBookmarks(): Promise<void> {
+    const payload = await api.bootstrap()
+    bookmarks.value = payload.bookmarks
   }
 
   async function updateBookmark(id: string, patch: BookmarkPatch): Promise<boolean> {
@@ -243,6 +275,8 @@ export const useDataStore = defineStore('data', () => {
     removeGroup,
     applyGroupOrder,
     createBookmark,
+    replaceBookmark,
+    reloadBookmarks,
     updateBookmark,
     removeBookmark,
     applyBookmarkOrder,

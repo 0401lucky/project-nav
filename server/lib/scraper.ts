@@ -38,7 +38,7 @@ export async function fetchPage(url: string): Promise<FetchedPage> {
         url,
         finalUrl: resp.url || url,
         ok: false,
-        errorMessage: `HTTP ${resp.status}`,
+        errorMessage: describeHttpFailure(resp),
       }
     }
     const html = await readBoundedText(resp, HTML_BYTES_LIMIT)
@@ -50,11 +50,30 @@ export async function fetchPage(url: string): Promise<FetchedPage> {
       url,
       finalUrl: url,
       ok: false,
-      errorMessage: (e as Error).message,
+      errorMessage: ctrl.signal.aborted ? '页面 8 秒内没有响应' : describeNetworkFailure(e),
     }
   } finally {
     clearTimeout(timer)
   }
+}
+
+function describeHttpFailure(resp: Response): string {
+  if (resp.headers.get('cf-mitigated') === 'challenge') {
+    return '站点开启了 Cloudflare 人机验证，服务器无法访问'
+  }
+  if (resp.status === 404) return '页面不存在（HTTP 404）'
+  if (resp.status === 526) return '站点证书无效（HTTP 526）'
+  return `页面返回 HTTP ${resp.status}`
+}
+
+/** undici 把真正的原因放在 cause.code 里，message 只有一句 fetch failed */
+function describeNetworkFailure(error: unknown): string {
+  const code = (error as { cause?: { code?: string } }).cause?.code ?? ''
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return '域名不存在或无法解析'
+  if (code === 'ECONNREFUSED') return '连接被拒绝'
+  if (code === 'ECONNRESET') return '连接被重置'
+  if (code.startsWith('ERR_TLS') || code.includes('CERT')) return '站点证书无效'
+  return '无法连接到站点'
 }
 
 async function readBoundedText(
@@ -157,28 +176,27 @@ function extractLogoCandidates(
     candidates.push({ url: abs, priority, size })
   }
 
-  // 1) <link rel="apple-touch-icon" sizes="180x180" href="..."> —— 通常最高分辨率
-  const linkRegex =
-    /<link[^>]+rel=["']([^"']+)["'][^>]*?(?:sizes=["']([^"']+)["'])?[^>]*?href=["']([^"']+)["']/gi
-  let m: RegExpExecArray | null
-  while ((m = linkRegex.exec(html)) !== null) {
-    const rel = m[1].toLowerCase()
-    const size = parseSize(m[2] || '')
-    const href = m[3]
-    if (rel.includes('apple-touch-icon')) {
+  // 1) 页面声明的图标。先切出每个 <link> 标签再解析属性，属性顺序、引号写法都不影响
+  for (const tag of html.match(/<link\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi) ?? []) {
+    const attrs = parseAttributes(tag)
+    const rels = (attrs.get('rel') ?? '').toLowerCase().split(/\s+/)
+    const href = attrs.get('href')
+    if (href === undefined) continue
+    const size = parseSize(attrs.get('sizes') ?? '')
+    if (rels.includes('apple-touch-icon') || rels.includes('apple-touch-icon-precomposed')) {
       add(href, 100, size)
-    } else if (rel.includes('mask-icon')) {
-      add(href, 30, size)
-    } else if (rel.includes('shortcut icon') || rel === 'icon') {
-      add(href, 50, size)
-    } else if (rel.includes('fluid-icon')) {
+    } else if (rels.includes('icon')) {
+      add(href, 90, size)
+    } else if (rels.includes('fluid-icon')) {
       add(href, 40, size)
+    } else if (rels.includes('mask-icon')) {
+      add(href, 30, size)
     }
   }
 
-  // 2) og:image / twitter:image —— 适合做大图 logo
-  add(meta.ogImage, 70)
-  add(meta.twitterImage, 60)
+  // 2) og:image / twitter:image —— 通常是分享横幅，只在页面没声明图标时才轮到
+  add(meta.ogImage, 20)
+  add(meta.twitterImage, 15)
 
   // 3) /favicon.ico fallback（如果 link 一个都没找到）
   if (candidates.length === 0) {
@@ -201,10 +219,31 @@ function extractLogoCandidates(
   return candidates.map((c) => c.url)
 }
 
+/**
+ * 解析一个标签的属性，支持双引号、单引号、无引号三种写法。
+ * 值按引号配对读取：双引号里的 data:image/svg+xml,<svg xmlns='…'> 不会在单引号处截断。
+ */
+export function parseAttributes(tag: string): Map<string, string> {
+  const attrs = new Map<string, string>()
+  const body = tag.replace(/^<\w+/, '').replace(/\/?>$/, '')
+  const re = /([^\s"'=<>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(body)) !== null) {
+    const name = m[1]!.toLowerCase()
+    if (attrs.has(name)) continue
+    attrs.set(name, decodeHtmlEntities(m[2] ?? m[3] ?? m[4] ?? ''))
+  }
+  return attrs
+}
+
+/** 多个尺寸（sizes="16x16 32x32"）取最大的；any（SVG）视为很大 */
 function parseSize(s: string): number {
-  const m = s.match(/(\d+)x(\d+)/i)
-  if (!m) return 0
-  return parseInt(m[1], 10) * parseInt(m[2], 10)
+  if (/\bany\b/i.test(s)) return 1024 * 1024
+  let best = 0
+  for (const m of s.matchAll(/(\d+)x(\d+)/gi)) {
+    best = Math.max(best, parseInt(m[1]!, 10) * parseInt(m[2]!, 10))
+  }
+  return best
 }
 
 function absoluteUrl(href: string, base: string): string | null {

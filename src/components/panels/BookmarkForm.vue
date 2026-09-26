@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ApiError, api } from '@/api/client'
+import { ApiError, api, describeError } from '@/api/client'
 import type { BookmarkInput } from '@/api/client'
+import FallbackIcon from '@/components/ui/FallbackIcon.vue'
 import { useDataStore } from '@/stores/data'
-import type { Bookmark } from '@/types'
+import type { Bookmark, IconRefreshResponse } from '@/types'
 
 const props = defineProps<{
   /** 有值表示编辑，无值表示新增 */
@@ -66,9 +67,10 @@ async function fetchMeta(): Promise<void> {
       description.value = meta.description
     }
     candidates.value = meta.iconCandidates
-    chosenIcon.value = null
+    // 默认选中排第一的候选（服务端已按「页面声明的图标 > 分享图」排好序），不点也能带上图标
+    chosenIcon.value = meta.iconCandidates[0] ?? null
     if (meta.error !== undefined) {
-      fetchNote.value = '没能抓取到信息，可以手动填写'
+      fetchNote.value = `没能抓取到信息（${meta.error}），可以手动填写`
     } else if (meta.iconCandidates.length === 0) {
       fetchNote.value = '这个站点没有提供图标，会用首字色块'
     }
@@ -96,6 +98,66 @@ function flushDebounce(): void {
 }
 
 onBeforeUnmount(() => clearTimeout(debounceTimer))
+
+// ---------------- 编辑时的图标操作：立即生效，不等「保存修改」 ----------------
+
+/** 以 store 里的最新数据为准：重抓、上传之后图标会变 */
+const live = computed(() => {
+  const id = props.bookmark?.id
+  if (id === undefined) return null
+  return data.bookmarks.find((item) => item.id === id) ?? props.bookmark ?? null
+})
+
+const liveIconSrc = computed(() =>
+  live.value === null ? '' : `/icons/${live.value.id}.webp?v=${live.value.updatedAt}`,
+)
+
+type IconAction = 'refetch' | 'public' | 'upload'
+const iconBusy = ref<IconAction | null>(null)
+const iconNote = ref<{ text: string; error: boolean } | null>(null)
+const iconInput = ref<HTMLInputElement | null>(null)
+
+async function runIcon(
+  action: IconAction,
+  task: (id: string) => Promise<IconRefreshResponse>,
+  success: string,
+): Promise<void> {
+  const id = props.bookmark?.id
+  if (id === undefined || iconBusy.value !== null) return
+  iconBusy.value = action
+  iconNote.value = null
+  try {
+    const result = await task(id)
+    data.replaceBookmark(result.bookmark)
+    iconNote.value =
+      result.error === undefined ? { text: success, error: false } : { text: result.error, error: true }
+  } catch (error) {
+    iconNote.value = { text: describeError(error), error: true }
+  } finally {
+    iconBusy.value = null
+  }
+}
+
+function uploadIcon(file: Blob): void {
+  void runIcon('upload', (id) => api.uploadIcon(id, file), '已换上新图标')
+}
+
+function onIconFile(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // 先清空，连续选同一个文件也能再次触发 change
+  input.value = ''
+  if (file !== undefined) uploadIcon(file)
+}
+
+/** 编辑面板里任意位置粘贴图片都当作换图标；粘贴文字照常进输入框 */
+function onPaste(event: ClipboardEvent): void {
+  if (!isEdit.value) return
+  const file = [...(event.clipboardData?.files ?? [])].find((item) => item.type.startsWith('image/'))
+  if (file === undefined) return
+  event.preventDefault()
+  uploadIcon(file)
+}
 
 async function save(): Promise<void> {
   if (!canSave.value) {
@@ -132,7 +194,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <form class="form" @submit.prevent="save">
+  <form class="form" @submit.prevent="save" @paste="onPaste">
     <div class="field">
       <label class="field__label" for="bm-url">网址</label>
       <input
@@ -184,7 +246,51 @@ async function save(): Promise<void> {
           <img :src="candidate" alt="" loading="lazy" decoding="async" />
         </button>
       </div>
-      <p class="field__hint">选中后会下载到本站；不选就用首字色块</p>
+      <p class="field__hint">已默认选中第一个；再点一次可取消，不选就用首字色块</p>
+    </div>
+
+    <div v-if="live !== null" class="field">
+      <span class="field__label">图标</span>
+      <div class="icon-edit">
+        <img
+          v-if="live.hasIcon"
+          class="icon-edit__preview"
+          :src="liveIconSrc"
+          alt=""
+          width="40"
+          height="40"
+        />
+        <FallbackIcon v-else :title="live.title" :url="live.url" :size="40" />
+        <div class="icon-edit__actions">
+          <button
+            class="btn btn--small"
+            type="button"
+            :disabled="iconBusy !== null"
+            @click="runIcon('refetch', api.refetchIcon, '已重新抓取图标')"
+          >
+            {{ iconBusy === 'refetch' ? '抓取中…' : '重新抓取' }}
+          </button>
+          <button class="btn btn--small" type="button" :disabled="iconBusy !== null" @click="iconInput?.click()">
+            {{ iconBusy === 'upload' ? '上传中…' : '上传图片' }}
+          </button>
+          <button
+            class="btn btn--small"
+            type="button"
+            :disabled="iconBusy !== null"
+            title="会把这个网站的域名发给 Google 的图标服务"
+            @click="runIcon('public', api.publicIcon, '已从公共服务获取图标')"
+          >
+            {{ iconBusy === 'public' ? '获取中…' : '从公共服务获取' }}
+          </button>
+        </div>
+      </div>
+      <input ref="iconInput" type="file" accept="image/*" hidden @change="onIconFile" />
+      <p v-if="iconNote" :class="iconNote.error ? 'field__error' : 'field__hint'" role="status">
+        {{ iconNote.text }}
+      </p>
+      <p v-else class="field__hint">
+        按已保存的网址抓取；也可以在面板里直接 Ctrl+V 粘贴图片。「从公共服务获取」会把域名发给 Google
+      </p>
     </div>
 
     <p v-if="formError" class="field__error" role="alert">{{ formError }}</p>
@@ -225,5 +331,30 @@ async function save(): Promise<void> {
 .icons__item.is-chosen {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
+}
+
+.icon-edit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-edit__preview {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.icon-edit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn--small {
+  padding: 6px 11px;
+  font-size: 12px;
 }
 </style>

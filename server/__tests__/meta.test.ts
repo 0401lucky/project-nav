@@ -51,6 +51,44 @@ describe('extractMeta', () => {
   })
 })
 
+describe('图标 <link> 解析', () => {
+  const base = 'https://example.com/page'
+  const candidatesOf = (head: string) => extractMeta(`<html><head>${head}</head></html>`, base).logoCandidates
+
+  it('href 写在 rel 前面也能认出（Zeabur 的写法）', () => {
+    assert.deepEqual(candidatesOf('<link href="/z.png" rel="icon">'), ['https://example.com/z.png'])
+  })
+
+  it('无引号与单引号属性', () => {
+    assert.deepEqual(candidatesOf("<link rel=icon href=/a.png><link rel='apple-touch-icon' href='/b.png'>"), [
+      'https://example.com/b.png',
+      'https://example.com/a.png',
+    ])
+  })
+
+  it('含单引号和 > 的 data URI 完整保留', () => {
+    const uri = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><path d='M0 0'/></svg>"
+    assert.deepEqual(candidatesOf(`<link rel="icon" href="${uri}">`), [uri])
+  })
+
+  it('按 sizes 从大到小，不按文档顺序', () => {
+    assert.deepEqual(
+      candidatesOf(
+        '<link rel="apple-touch-icon" sizes="57x57" href="/57.png">' +
+          '<link rel="apple-touch-icon" sizes="180x180" href="/180.png">',
+      ),
+      ['https://example.com/180.png', 'https://example.com/57.png'],
+    )
+  })
+
+  it('认出 alternate icon，且 icon 排在 og:image 前面', () => {
+    assert.deepEqual(
+      candidatesOf('<meta property="og:image" content="/banner.png"><link rel="alternate icon" href="/fav.png">'),
+      ['https://example.com/fav.png', 'https://example.com/banner.png'],
+    )
+  })
+})
+
 describe('normalizeUrl', () => {
   it('裸域名补 https 并去掉结尾斜杠', () => {
     assert.equal(normalizeUrl('github.com'), 'https://github.com')
