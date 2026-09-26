@@ -24,7 +24,7 @@
 - 编辑面板不抓取、不显示图标区（`BookmarkForm.vue:49`、`:172`），已有书签没法重抓或换图标。
 - 保存后前端不刷新图标状态（`src/stores/data.ts:167-178`），失败时没有任何提示。
 
-## Requirements（草案）
+## Requirements
 
 - **R1 解码 ICO**：支持 ICO 容器里的 PNG 条目和 32 位 BMP 条目，取尺寸最大的一张；不新增依赖。现状：`server/lib/icons.ts:51` 直接交给 sharp，sharp 不认 ICO 容器。
 - **R2 解析 `<link>`**：属性顺序无关；支持双引号、单引号和无引号三种属性值写法；data URI 完整保留；正确读取 `sizes`；认出 `rel="alternate icon"`。现状见 `server/lib/scraper.ts:161-162`。
@@ -40,17 +40,17 @@
   - 第三方返回 404 时提示「公共服务也没有这个站的图标」。
 - **R10 带文字的 SVG**（已定：跳过）：服务器容器里没有字体，SVG 里的 `<text>` 会渲染成方框（雨读、EVE Chat 实测）。含 `<text>` 的 SVG 候选直接跳过、试下一个；不在镜像里装字体。EVE Chat 由 `/favicon.ico` 兜底拿到，雨读需手动上传。
 
-## Acceptance Criteria（草案）
+## Acceptance Criteria
 
-- [ ] 部署后对线上数据批量补抓：ICO 的 9 条、EVE Chat、Zeabur 共 11 条自动拿到图标；雨读因含文字 SVG 被跳过，手动上传后有图标
+- [ ] （a72f508 已部署，线上尚未执行补抓，随 home-interaction 部署一并核对）部署后对线上数据批量补抓：ICO 的 9 条、EVE Chat、Zeabur 共 11 条自动拿到图标；雨读因含文字 SVG 被跳过，手动上传后有图标
 - [ ] 编辑面板可上传/粘贴图片作为图标；点「从公共服务获取」能为 linux.do 拿到图标；未点击时服务器不访问任何第三方图标服务
-- [ ] 含 `<text>` 的 SVG 候选被跳过，不会存成方框图标
-- [ ] 单元测试覆盖 ICO 解码（PNG 条目、32 位 BMP 条目、alpha 全为 0 时退回 AND 掩码）
-- [ ] 单元测试覆盖 `<link>` 解析（`href` 在前、无引号、单引号、含单引号的 data URI、`sizes` 排序、`alternate icon`）以及 icon 排在 og:image 之前
+- [x] 含 `<text>` 的 SVG 候选被跳过，不会存成方框图标
+- [x] 单元测试覆盖 ICO 解码（PNG 条目、32 位 BMP 条目、alpha 全为 0 时退回 AND 掩码）
+- [x] 单元测试覆盖 `<link>` 解析（`href` 在前、无引号、单引号、含单引号的 data URI、`sizes` 排序、`alternate icon`）以及 icon 排在 og:image 之前
 - [ ] 新增书签时贴完网址、不做任何点选就保存，卡片也会在几秒内换上图标
 - [ ] 编辑已有书签可以重新抓取；失败时面板里显示具体原因
 - [ ] 批量补抓结束后显示成功数、失败数和每条失败原因
-- [ ] 没有新增运行时依赖
+- [x] 没有新增运行时依赖
 
 ## Out of Scope
 
