@@ -6,7 +6,7 @@
 
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { UnauthorizedError, api, describeError } from '@/api/client'
+import { ApiError, UnauthorizedError, api, describeError } from '@/api/client'
 import type { BookmarkInput, BookmarkPatch, GroupInput } from '@/api/client'
 import { applyOrderWithin, moveToGroupEnd, placeUpdated } from '@/composables/drag'
 import { useToast } from '@/composables/useToast'
@@ -23,10 +23,28 @@ interface Snapshot {
   bookmarks: Bookmark[]
 }
 
+/** 删除后可撤销的时长；撤销提示也显示这么久 */
+const UNDO_MS = 5000
+
+/** 已从界面上拿掉、还没提交给服务端的删除 */
+interface PendingDelete {
+  bookmark: Bookmark
+  /** 同组里原本排在它后面的那条，撤销时插回它前面；它是组内最后一条时为 null */
+  nextId: string | null
+  timer: ReturnType<typeof setTimeout>
+  /** 提交后撤销已无意义，要把那条带「撤销」的提示一起收掉 */
+  toastId: number
+}
+
 export const useDataStore = defineStore('data', () => {
   const groups = ref<Group[]>([])
   const bookmarks = ref<Bookmark[]>([])
   const loaded = ref(false)
+
+  /** 不放进响应式：界面只关心书签在不在数组里，不需要看这张表 */
+  const pending = new Map<string, PendingDelete>()
+  /** 已发出、还没回来的删除请求 */
+  const inflight = new Set<Promise<void>>()
 
   const toast = useToast()
 
@@ -54,6 +72,12 @@ export const useDataStore = defineStore('data', () => {
   }
 
   function reset(): void {
+    // 调用方（退出登录）会先 flushPendingDeletes；走到这里还剩的只能丢弃，等于没删
+    for (const entry of pending.values()) {
+      clearTimeout(entry.timer)
+      toast.dismiss(entry.toastId)
+    }
+    pending.clear()
     groups.value = []
     bookmarks.value = []
     loaded.value = false
@@ -65,7 +89,8 @@ export const useDataStore = defineStore('data', () => {
 
   function restore(snap: Snapshot): void {
     groups.value = snap.groups
-    bookmarks.value = snap.bookmarks
+    // 快照可能早于某次删除：待删除项不能跟着回滚复活，否则提交后界面上还留着它
+    bookmarks.value = snap.bookmarks.filter((item) => !pending.has(item.id))
   }
 
   /** 失败时统一收尾：回滚 + 提示 + 会话失效就整站退回登录屏 */
@@ -120,6 +145,8 @@ export const useDataStore = defineStore('data', () => {
   }
 
   async function removeGroup(id: string, moveTo?: string): Promise<boolean> {
+    // 待删除项可能在这个组里：先提交掉，免得撤销时组已经没了
+    await flushPendingDeletes()
     const snap = snapshot()
 
     // 乐观地先把组内书签迁到目标组末尾，再移除该组
@@ -205,6 +232,8 @@ export const useDataStore = defineStore('data', () => {
 
   /** 补抓之后整体刷新书签列表：成功的那些图标状态都变了 */
   async function reloadBookmarks(): Promise<void> {
+    // 不先提交的话，拉回来的列表里还有待删除项，它会重新出现在界面上
+    await flushPendingDeletes()
     const payload = await api.bootstrap()
     bookmarks.value = payload.bookmarks
   }
@@ -234,21 +263,96 @@ export const useDataStore = defineStore('data', () => {
     }
   }
 
-  async function removeBookmark(id: string): Promise<boolean> {
-    const snap = snapshot()
+  /**
+   * 删除先只在界面上拿掉，UNDO_MS 之后才真正调接口，期间可以撤销。
+   * 关掉页面等于没删（prd 接受）。
+   */
+  function removeBookmark(id: string): void {
+    const bookmark = bookmarks.value.find((item) => item.id === id)
+    if (bookmark === undefined || pending.has(id)) return
+
+    const sameGroup = bookmarks.value.filter((item) => item.groupId === bookmark.groupId)
+    const nextId = sameGroup[sameGroup.findIndex((item) => item.id === id) + 1]?.id ?? null
     bookmarks.value = bookmarks.value.filter((item) => item.id !== id)
 
-    try {
-      await api.deleteBookmark(id)
-      return true
-    } catch (error) {
-      handleFailure(error, snap)
-      return false
+    pending.set(id, {
+      bookmark,
+      nextId,
+      timer: setTimeout(() => commitDelete(id), UNDO_MS),
+      toastId: toast.action(`已删除「${bookmark.title}」`, '撤销', () => undoRemove(id), UNDO_MS),
+    })
+  }
+
+  function undoRemove(id: string): void {
+    const entry = pending.get(id)
+    if (entry === undefined) return // 已经提交了，撤销不了
+    clearTimeout(entry.timer)
+    pending.delete(id)
+    reinsert(entry)
+  }
+
+  /**
+   * 放回原位：插到「原来的后一条」前面，它也不在了就放到组末尾。
+   * 不用 snapshot/restore：几秒后整表换回去，会把这期间别的改动一起吞掉。
+   */
+  function reinsert(entry: PendingDelete): void {
+    const { bookmark, nextId } = entry
+    // 所在分组已经没了就放弃，插回去也是一张孤儿卡片
+    if (!groups.value.some((group) => group.id === bookmark.groupId)) return
+    // 提交失败前若已被别的途径放回（比如整表重新拉取），再插一次会出现重复 id
+    if (bookmarks.value.some((item) => item.id === bookmark.id)) return
+
+    const anchor = bookmarks.value.findIndex(
+      (item) => item.id === nextId && item.groupId === bookmark.groupId,
+    )
+    if (anchor === -1) {
+      bookmarks.value = moveToGroupEnd(bookmarks.value, bookmark)
+      return
     }
+    const next = [...bookmarks.value]
+    next.splice(anchor, 0, bookmark)
+    bookmarks.value = next
+  }
+
+  function commitDelete(id: string): void {
+    const entry = pending.get(id)
+    if (entry === undefined) return
+    clearTimeout(entry.timer)
+    pending.delete(id)
+    toast.dismiss(entry.toastId)
+
+    const request = submitDelete(entry)
+    inflight.add(request)
+    void request.finally(() => inflight.delete(request))
+  }
+
+  /** 不会 reject：失败在这里就地处理完 */
+  async function submitDelete(entry: PendingDelete): Promise<void> {
+    try {
+      await api.deleteBookmark(entry.bookmark.id)
+    } catch (error) {
+      // 404：服务端已经没有它了（比如被别处删掉），目的已经达到
+      if (error instanceof ApiError && error.status === 404) return
+      reinsert(entry)
+      if (error instanceof UnauthorizedError) useAuthStore().markUnauthorized()
+      toast.error(describeError(error))
+    }
+  }
+
+  /**
+   * 立刻提交全部待删除项，并等所有删除请求落地。
+   * 重排、删分组、重新拉取、退出登录之前都要先调它：
+   * 重排接口要求提交的 id 与服务端一致，而待删除项在服务端还在。
+   * 定时器刚触发、请求还在路上的那些也要等——它们已不在 pending 里了。
+   */
+  async function flushPendingDeletes(): Promise<void> {
+    for (const id of [...pending.keys()]) commitDelete(id)
+    await Promise.all([...inflight])
   }
 
   /** 组内重排，以及把别组的书签移进来（ids 里含移入项） */
   async function applyBookmarkOrder(groupId: string, ids: string[]): Promise<boolean> {
+    await flushPendingDeletes()
     const snap = snapshot()
     bookmarks.value = applyOrderWithin(bookmarks.value, groupId, ids)
 
@@ -279,6 +383,8 @@ export const useDataStore = defineStore('data', () => {
     reloadBookmarks,
     updateBookmark,
     removeBookmark,
+    undoRemove,
+    flushPendingDeletes,
     applyBookmarkOrder,
     groupIdsInOrder,
   }

@@ -96,3 +96,15 @@ export function splitByHighlights(
   if (cursor < text.length) parts.push({ text: text.slice(cursor), hit: false })
   return parts
 }
+
+/**
+ * 搜索结果里用 ↑↓ 移动当前项：夹在 [0, length-1] 内，到头不循环。
+ * 没有可选项时返回 0，让下次有结果时从第一条开始。
+ * 旧下标可能已越界（结果变少），先按界面上显示的位置（最后一条）夹回来再走，
+ * 否则按 ↑ 会原地不动。
+ */
+export function stepIndex(current: number, delta: number, length: number): number {
+  if (length <= 0) return 0
+  const from = Math.min(current, length - 1)
+  return Math.min(Math.max(from + delta, 0), length - 1)
+}

@@ -15,20 +15,52 @@ import { computed, onBeforeUnmount, watch } from 'vue'
 import FallbackIcon from '@/components/ui/FallbackIcon.vue'
 import { splitByHighlights } from '@/composables/filter'
 import type { HighlightRange } from '@/composables/filter'
+import { useDataStore } from '@/stores/data'
 import type { Bookmark } from '@/types'
 
 const props = defineProps<{
   bookmark: Bookmark
   /** 当前搜索命中的标题区间，未搜索时为空 */
   highlight?: HighlightRange[]
-  /** 拖拽手柄的事件绑定；不传就不显示手柄（触屏、搜索结果里都不需要） */
+  /** 整张卡片的拖拽事件绑定；不传就不可拖（窄屏、搜索结果里都不给拖） */
   drag?: {
     onStart: (event: DragEvent) => void
     onEnd: () => void
   }
+  /** 搜索框里 ↑↓ 选中的当前项，回车会打开它 */
+  active?: boolean
 }>()
 
-const emit = defineEmits<{ edit: []; remove: []; move: [] }>()
+const emit = defineEmits<{ edit: []; remove: []; move: [groupId: string] }>()
+
+const data = useDataStore()
+
+/** 菜单里可以移过去的分组：除当前分组外的全部；只有一个分组时为空，整节不显示 */
+const moveTargets = computed(() => data.groups.filter((group) => group.id !== props.bookmark.groupId))
+
+const card = ref<HTMLElement | null>(null)
+/** 拖动中降低不透明度，代替原来手柄上的视觉反馈 */
+const dragging = ref(false)
+
+function onDragStart(event: DragEvent): void {
+  // 不可拖时 <a> 仍可能触发浏览器原生的链接拖拽，那种不归我们管
+  if (props.drag === undefined) return
+  dragging.value = true
+  props.drag.onStart(event)
+}
+
+function onDragEnd(): void {
+  dragging.value = false
+  props.drag?.onEnd()
+}
+
+// ↑↓ 选到视口外的卡片时要把它滚出来，否则用户看不到回车会打开哪条
+watch(
+  () => props.active,
+  (active) => {
+    if (active) card.value?.scrollIntoView({ block: 'nearest' })
+  },
+)
 
 /** 图标文件可能已被清掉，加载失败就退回色块，不显示裂图 */
 const iconFailed = ref(false)
@@ -45,8 +77,29 @@ const titleParts = computed(() => splitByHighlights(props.bookmark.title, props.
 
 const menuOpen = computed(() => openMenuId.value === props.bookmark.id)
 const moreButton = ref<HTMLElement | null>(null)
-/** fixed 定位相对视口，直接存最终坐标 */
-const anchor = ref({ top: 0, right: 0 })
+const menu = ref<HTMLElement | null>(null)
+
+/** 菜单离视口边缘至少留这么多 */
+const MENU_MARGIN = 8
+/** 按钮下方不够这么高就改为向上展开 */
+const MENU_MIN_BELOW = 240
+
+/**
+ * fixed 定位相对视口，直接存最终坐标。
+ * 向下展开用 top，向上展开用 bottom；max-height 按那一侧的剩余空间算，
+ * 分组多时菜单在内部滚动，不会伸出视口。
+ */
+const anchor = ref<{ top?: number; bottom?: number; right: number; maxHeight: number }>({
+  right: 0,
+  maxHeight: 0,
+})
+
+const menuStyle = computed(() => ({
+  top: anchor.value.top === undefined ? undefined : `${anchor.value.top}px`,
+  bottom: anchor.value.bottom === undefined ? undefined : `${anchor.value.bottom}px`,
+  right: `${anchor.value.right}px`,
+  maxHeight: `${anchor.value.maxHeight}px`,
+}))
 
 /**
  * 菜单必须 Teleport 到 body。
@@ -61,10 +114,14 @@ function openMenu(event?: MouseEvent): void {
   const rect = moreButton.value?.getBoundingClientRect()
   if (rect === undefined) return
 
-  anchor.value = {
-    top: rect.bottom + 6,
-    right: Math.max(8, window.innerWidth - rect.right),
-  }
+  const right = Math.max(MENU_MARGIN, window.innerWidth - rect.right)
+  const below = window.innerHeight - rect.bottom - 6 - MENU_MARGIN
+  const above = rect.top - 6 - MENU_MARGIN
+  // 下方不够才考虑翻上去，而且上方得更宽裕：两边都挤时翻过去反而更糟
+  anchor.value =
+    below < MENU_MIN_BELOW && above > below
+      ? { bottom: window.innerHeight - rect.top + 6, right, maxHeight: above }
+      : { top: rect.bottom + 6, right, maxHeight: below }
   openMenuId.value = props.bookmark.id
 }
 
@@ -82,6 +139,12 @@ function dismiss(): void {
   close()
 }
 
+/** 菜单自己内部的滚动（分组多时）不算，那是用户在菜单里找分组 */
+function onScroll(event: Event): void {
+  if (event.target instanceof Node && menu.value?.contains(event.target)) return
+  close()
+}
+
 /** 挂在 document 上，先于 window 上的全局快捷键收到：Esc 只收菜单，不再清空搜索 */
 function onKeydown(event: KeyboardEvent): void {
   if (event.key !== 'Escape') return
@@ -93,12 +156,12 @@ watch(menuOpen, (open) => {
   if (open) {
     document.addEventListener('click', dismiss)
     document.addEventListener('keydown', onKeydown)
-    window.addEventListener('scroll', dismiss, { passive: true, capture: true })
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true })
     window.addEventListener('resize', dismiss)
   } else {
     document.removeEventListener('click', dismiss)
     document.removeEventListener('keydown', onKeydown)
-    window.removeEventListener('scroll', dismiss, { capture: true })
+    window.removeEventListener('scroll', onScroll, { capture: true })
     window.removeEventListener('resize', dismiss)
   }
 })
@@ -107,7 +170,7 @@ onBeforeUnmount(() => {
   close()
   document.removeEventListener('click', dismiss)
   document.removeEventListener('keydown', onKeydown)
-  window.removeEventListener('scroll', dismiss, { capture: true })
+  window.removeEventListener('scroll', onScroll, { capture: true })
   window.removeEventListener('resize', dismiss)
 })
 </script>
@@ -115,36 +178,24 @@ onBeforeUnmount(() => {
 <template>
   <!-- 不能靠 mouseleave 收起：菜单已 Teleport 到 body，指针移向菜单就算离开了卡片 -->
   <div class="card-wrap">
+    <!--
+      整张卡片就是拖拽源。不可拖时不写 draggable，保留浏览器对链接的默认行为。
+      真实拖拽结束后浏览器不会再派发 click，所以拖完不会误打开链接。
+    -->
     <a
+      ref="card"
       class="card"
+      :class="{ 'is-dragging': dragging, 'is-active': active }"
       :href="bookmark.url"
       target="_blank"
       rel="noopener noreferrer"
       :title="bookmark.description ?? bookmark.url"
+      :draggable="drag ? 'true' : undefined"
+      @dragstart="onDragStart"
+      @dragend="onDragEnd"
       @contextmenu="openMenu"
     >
-      <span
-        v-if="drag"
-        class="card__handle"
-        draggable="true"
-        role="button"
-        tabindex="-1"
-        aria-label="拖动排序"
-        title="拖动排序"
-        @dragstart="drag.onStart"
-        @dragend="drag.onEnd"
-        @click.prevent.stop
-      >
-        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
-          <circle cx="2.5" cy="3" r="1.3" />
-          <circle cx="7.5" cy="3" r="1.3" />
-          <circle cx="2.5" cy="7" r="1.3" />
-          <circle cx="7.5" cy="7" r="1.3" />
-          <circle cx="2.5" cy="11" r="1.3" />
-          <circle cx="7.5" cy="11" r="1.3" />
-        </svg>
-      </span>
-
+      <!-- 图片默认自己就可拖，从图标上按下时拖走的会是图片而不是卡片 -->
       <img
         v-if="showIcon"
         class="card__icon"
@@ -154,6 +205,7 @@ onBeforeUnmount(() => {
         height="32"
         loading="lazy"
         decoding="async"
+        draggable="false"
         @error="iconFailed = true"
       />
       <FallbackIcon v-else :title="bookmark.title" :url="bookmark.url" :size="32" />
@@ -183,18 +235,32 @@ onBeforeUnmount(() => {
   </div>
 
   <Teleport to="body">
-    <div
-      v-if="menuOpen"
-      class="card-menu"
-      role="menu"
-      :style="{ top: `${anchor.top}px`, right: `${anchor.right}px` }"
-    >
+    <div v-if="menuOpen" ref="menu" class="card-menu" role="menu" :style="menuStyle">
       <button class="card-menu__item" type="button" role="menuitem" @click="choose(() => emit('edit'))">
         编辑
       </button>
-      <button class="card-menu__item" type="button" role="menuitem" @click="choose(() => emit('move'))">
-        移到分组
-      </button>
+
+      <template v-if="moveTargets.length > 0">
+        <div class="card-menu__sep" role="separator" />
+        <!-- 小标题只做说明、不可点；分组直接列在下面，点一下就移过去 -->
+        <div class="card-menu__section" role="group" aria-label="移到分组">
+          <!-- 拦住冒泡：点到小标题不算「点别处」，菜单不收起 -->
+          <p class="card-menu__label" aria-hidden="true" @click.stop>移到分组</p>
+          <button
+            v-for="group in moveTargets"
+            :key="group.id"
+            class="card-menu__item card-menu__item--group"
+            type="button"
+            role="menuitem"
+            @click="choose(() => emit('move', group.id))"
+          >
+            <span v-if="group.icon" class="card-menu__icon" aria-hidden="true">{{ group.icon }}</span>
+            <span class="card-menu__name">{{ group.name }}</span>
+          </button>
+        </div>
+      </template>
+
+      <div class="card-menu__sep" role="separator" />
       <button
         class="card-menu__item card-menu__item--danger"
         type="button"
@@ -234,27 +300,14 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
-/* 拖拽手柄平时不占视觉重量，悬停才显形 */
-.card__handle {
-  position: absolute;
-  left: -1px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: grid;
-  place-items: center;
-  width: 11px;
-  color: var(--text-3);
-  opacity: 0;
-  cursor: grab;
-  transition: opacity var(--dur) var(--ease);
+.card.is-dragging {
+  opacity: 0.45;
 }
 
-.card:hover .card__handle {
-  opacity: 1;
-}
-
-.card__handle:active {
-  cursor: grabbing;
+/* 搜索框 ↑↓ 选中的当前项：边框再加一圈外描边，比悬停更醒目 */
+.card.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .card__icon {
@@ -317,7 +370,12 @@ onBeforeUnmount(() => {
   position: fixed;
   z-index: 60;
   display: grid;
+  align-content: start;
   min-width: 132px;
+  max-width: 240px;
+  /* 分组多时在菜单内部滚动；max-height 由 openMenu 按视口剩余空间算好写进 style */
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 4px;
   background: rgb(26 30 38 / 0.94);
   border: 1px solid var(--stroke);
@@ -345,12 +403,41 @@ onBeforeUnmount(() => {
 .card-menu__item--danger:hover {
   background: rgb(220 80 80 / 0.22);
 }
-@media (max-width: 640px) {
-  /* 触屏没有 hover，手柄永远不会显形，直接不占位（prd 把移动端拖拽列为不在范围内） */
-  .card__handle {
-    display: none;
-  }
 
+.card-menu__section {
+  display: grid;
+}
+
+.card-menu__item--group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.card-menu__icon {
+  flex: 0 0 auto;
+  line-height: 1;
+}
+
+.card-menu__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-menu__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--stroke);
+}
+
+.card-menu__label {
+  padding: 4px 10px 2px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+@media (max-width: 640px) {
   /* 竖排：3 列时卡片只有约 100px 宽，横排会把标题挤没。
      菜单按钮改为浮在右上角，不再参与横向布局。 */
   .card {

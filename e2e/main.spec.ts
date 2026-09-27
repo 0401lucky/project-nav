@@ -53,8 +53,11 @@ test('主路径：登录 → 新增 → 拖拽 → 搜索回车 → 切壁纸', 
   // 新增的排在该分组最后
   expect((await titles().allTextContents()).at(-1)).toBe(NEW_TITLE)
 
-  // ---- 2. 拖到分组第一位 ----
-  await card.locator('.card__handle').dragTo(panel.locator('.panel__cell').first())
+  // ---- 2. 按住卡片本体（不是边缘手柄）拖到分组第一位 ----
+  // 落点取第一格的左上角：dropIndexFor 按左右半边判断前后，正中间会落在它后面
+  await card.locator('.card').dragTo(panel.locator('.panel__cell').first(), {
+    targetPosition: { x: 8, y: 8 },
+  })
   await expect.poll(async () => (await titles().allTextContents())[0]).toBe(NEW_TITLE)
 
   // 重排要落到服务端：刷新后顺序还在

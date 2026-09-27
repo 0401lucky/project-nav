@@ -38,21 +38,18 @@ type PanelKind =
   | 'edit-bookmark'
   | 'add-group'
   | 'edit-group'
-  | 'move-bookmark'
   | 'settings'
 
 const panel = ref<PanelKind | null>(null)
 const activeBookmark = ref<Bookmark | null>(null)
 const activeGroup = ref<Group | null>(null)
 const prefill = ref<{ url?: string; title?: string }>({})
-const moveTargetId = ref('')
 
 const PANEL_TITLES: Record<PanelKind, string> = {
   'add-bookmark': '添加书签',
   'edit-bookmark': '编辑书签',
   'add-group': '新建分组',
   'edit-group': '编辑分组',
-  'move-bookmark': '移到分组',
   settings: '设置',
 }
 
@@ -76,14 +73,8 @@ const actions: CardActions = {
     activeBookmark.value = bookmark
     panel.value = 'edit-bookmark'
   },
-  remove: (bookmark) => {
-    void data.removeBookmark(bookmark.id)
-  },
-  move: (bookmark) => {
-    activeBookmark.value = bookmark
-    moveTargetId.value = data.groups.find((group) => group.id !== bookmark.groupId)?.id ?? ''
-    panel.value = 'move-bookmark'
-  },
+  remove: (bookmark) => data.removeBookmark(bookmark.id),
+  move: (bookmark, groupId) => void moveBookmark(bookmark, groupId),
   addBookmark: (group) => addBookmarkTo(group),
   editGroup: (group) => {
     activeGroup.value = group
@@ -91,11 +82,12 @@ const actions: CardActions = {
   },
 }
 
-async function confirmMove(): Promise<void> {
-  const bookmark = activeBookmark.value
-  if (bookmark === null || moveTargetId.value === '') return
-  const ok = await data.updateBookmark(bookmark.id, { groupId: moveTargetId.value })
-  if (ok) closePanel()
+async function moveBookmark(bookmark: Bookmark, groupId: string): Promise<void> {
+  // 先记下名字：请求期间分组可能被改名，提示以点下去时看到的为准
+  const name = data.groups.find((group) => group.id === groupId)?.name
+  if (name === undefined) return
+  const ok = await data.updateBookmark(bookmark.id, { groupId })
+  if (ok) toast.show(`已移到「${name}」`)
 }
 
 provideHomeContext({ drag, actions })
@@ -156,6 +148,8 @@ async function bootstrap(): Promise<void> {
 /** 导入之后要把分组与书签重新拉一遍 */
 async function reload(): Promise<void> {
   try {
+    // 待删除项在服务端还在，不先提交的话拉回来它又会出现
+    await data.flushPendingDeletes()
     await loadAll()
   } catch (thrown) {
     if (thrown instanceof UnauthorizedError) auth.markUnauthorized()
@@ -165,6 +159,8 @@ async function reload(): Promise<void> {
 
 async function logout(): Promise<void> {
   closePanel()
+  // 必须在会话失效之前提交，退出后删除请求会被 401 拒掉
+  await data.flushPendingDeletes()
   await auth.logout()
   data.reset()
   settings.reset()
@@ -266,6 +262,7 @@ const rootStyle = computed(() => ({ '--accent': settings.accent }))
         v-if="panel === 'add-bookmark' || panel === 'edit-bookmark'"
         :key="activeBookmark?.id ?? 'new-bookmark'"
         :bookmark="activeBookmark"
+        :default-group-id="activeGroup?.id"
         :prefill="prefill"
         @saved="closePanel"
         @cancel="closePanel"
@@ -280,23 +277,6 @@ const rootStyle = computed(() => ({ '--accent': settings.accent }))
       />
 
       <SettingsPanel v-else-if="panel === 'settings'" @logout="logout" @imported="reload" />
-
-      <div v-else-if="panel === 'move-bookmark'" class="field">
-        <label class="field__label" for="mv-group">移到哪个分组</label>
-        <select id="mv-group" v-model="moveTargetId" class="select">
-          <option value="" disabled>请选择</option>
-          <option v-for="group in data.groups" :key="group.id" :value="group.id">
-            {{ group.icon ? `${group.icon} ` : '' }}{{ group.name }}
-          </option>
-        </select>
-      </div>
-
-      <template #footer>
-        <div v-if="panel === 'move-bookmark'" class="btn-row">
-          <button class="btn" type="button" @click="closePanel">取消</button>
-          <button class="btn btn--primary" type="button" @click="confirmMove">移动</button>
-        </div>
-      </template>
     </SlidePanel>
 
     <Toast />

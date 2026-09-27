@@ -11,6 +11,8 @@ const props = defineProps<{
   bookmark?: Bookmark | null
   /** 从 bookmarklet 的 #add 带进来的预填 */
   prefill?: { url?: string; title?: string }
+  /** 新增时默认选中的分组：从某个分组的「添加」进来就是那个分组，没有就取第一个 */
+  defaultGroupId?: string
 }>()
 
 const emit = defineEmits<{ saved: []; cancel: [] }>()
@@ -22,7 +24,7 @@ const isEdit = computed(() => props.bookmark != null)
 const url = ref(props.bookmark?.url ?? props.prefill?.url ?? '')
 const title = ref(props.bookmark?.title ?? props.prefill?.title ?? '')
 const description = ref(props.bookmark?.description ?? '')
-const groupId = ref(props.bookmark?.groupId ?? data.groups[0]?.id ?? '')
+const groupId = ref(props.bookmark?.groupId ?? props.defaultGroupId ?? data.groups[0]?.id ?? '')
 
 const candidates = ref<string[]>([])
 const chosenIcon = ref<string | null>(null)

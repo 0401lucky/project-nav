@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端规范索引与性能预算"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件写法、层叠、无障碍"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "乐观更新与回滚约定，删除撤销要遵守"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "composable 与纯逻辑拆分（useFilter/filter.ts）"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "验证命令与测试要求"}

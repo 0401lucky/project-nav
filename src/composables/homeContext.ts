@@ -11,7 +11,7 @@ import type { Bookmark, Group } from '@/types'
 export interface CardActions {
   edit: (bookmark: Bookmark) => void
   remove: (bookmark: Bookmark) => void
-  move: (bookmark: Bookmark) => void
+  move: (bookmark: Bookmark, groupId: string) => void
   addBookmark: (group: Group) => void
   editGroup: (group: Group) => void
 }

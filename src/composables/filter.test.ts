@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { filterBookmarks, rangesOf, splitByHighlights } from './filter.ts'
+import { filterBookmarks, rangesOf, splitByHighlights, stepIndex } from './filter.ts'
 import type { Bookmark, Group } from '../types.ts'
 
 const groups: Group[] = [
@@ -154,5 +154,28 @@ describe('splitByHighlights', () => {
       'abcdef',
       '拼回来必须还是原文',
     )
+  })
+})
+
+describe('stepIndex', () => {
+  it('按方向移动一格', () => {
+    assert.equal(stepIndex(0, 1, 3), 1)
+    assert.equal(stepIndex(2, -1, 3), 1)
+  })
+
+  it('到头不循环', () => {
+    assert.equal(stepIndex(2, 1, 3), 2, '最后一条再按 ↓ 停在原地')
+    assert.equal(stepIndex(0, -1, 3), 0, '第一条再按 ↑ 停在原地')
+  })
+
+  it('当前下标越界时拉回范围内', () => {
+    // 结果变少（比如删掉了一条）后，旧下标可能已经超出列表；界面上显示在最后一条
+    assert.equal(stepIndex(5, 1, 3), 2)
+    assert.equal(stepIndex(5, -1, 3), 1, '界面上当前是最后一条，按 ↑ 应到倒数第二条')
+  })
+
+  it('没有可选项时返回 0', () => {
+    assert.equal(stepIndex(0, 1, 0), 0)
+    assert.equal(stepIndex(3, -1, 0), 0)
   })
 })

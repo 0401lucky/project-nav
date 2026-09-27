@@ -54,7 +54,7 @@ async function loginWithCards(page: Page): Promise<void> {
 test.describe('窄屏 390x844', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('首页：固定 3 列、无拖拽手柄、菜单按钮常显', async ({ page }) => {
+  test('首页：固定 3 列、卡片不可拖、菜单按钮常显', async ({ page }) => {
     await loginWithCards(page)
 
     // auto-fill 会按容器宽度铺开，窄屏必须是固定 3 列
@@ -63,8 +63,11 @@ test.describe('窄屏 390x844', () => {
       /^[\d.]+px [\d.]+px [\d.]+px$/,
     )
 
-    // 触屏没有 hover：拖拽手柄藏起来，菜单按钮反过来必须常显
-    await expect(page.locator('.card__handle').first()).toBeHidden()
+    // 窄屏不给拖：卡片和标题栏都不写 draggable，也没有单独的手柄
+    await expect(page.locator('.card').first()).not.toHaveAttribute('draggable', 'true')
+    await expect(page.locator('.panel__head').first()).not.toHaveAttribute('draggable', 'true')
+    await expect(page.locator('.card__handle, .panel__handle')).toHaveCount(0)
+    // 触屏没有 hover：菜单按钮必须常显
     await expect(page.locator('.card__more').first()).toHaveCSS('opacity', '1')
 
     // 留一张现场图，方便人工核对移动端观感
@@ -127,7 +130,7 @@ test.describe('窄屏 390x844', () => {
 test.describe('宽屏下的对照', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
-  test('宽屏按容器自动铺开，拖拽手柄存在（hover 才显形）', async ({ page }) => {
+  test('宽屏按容器自动铺开，整张卡片可拖（没有单独的手柄）', async ({ page }) => {
     await loginWithCards(page)
 
     // 只断言不是固定 3 列：具体列数随窗口宽度变化，写死会很脆
@@ -136,8 +139,10 @@ test.describe('宽屏下的对照', () => {
       /^[\d.]+px [\d.]+px [\d.]+px$/,
     )
 
-    // 手柄在 DOM 里（只是 hover 才显形），移动端那条 display:none 不生效
-    await expect(page.locator('.card__handle').first()).toBeAttached()
+    // 拖拽源是卡片本体与标题栏，页面上不再有手柄
+    await expect(page.locator('.card').first()).toHaveAttribute('draggable', 'true')
+    await expect(page.locator('.panel__head').first()).toHaveAttribute('draggable', 'true')
+    await expect(page.locator('.card__handle, .panel__handle')).toHaveCount(0)
     await expect(page.locator('.card__more').first()).toHaveCSS('opacity', '0')
   })
 })

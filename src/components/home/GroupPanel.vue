@@ -9,14 +9,34 @@ import type { Bookmark } from '@/types'
 const props = defineProps<{ entry: GroupWithBookmarks; groupIndex: number }>()
 
 // 高亮区间来自搜索，直接在这里取，省得把整张表 prop 透传下来
-const { result, query } = useFilter()
+const { result, query, activeBookmark } = useFilter()
 const { drag, actions } = useHomeContext()
 
 /**
  * 过滤状态下不给拖：重排接口要求带上该分组的**全部**书签 id，
  * 而过滤后只剩子集，提交上去会被服务端判为「缺项」直接 400。
+ * 窄屏同样不给拖，由 canDrag 负责。
  */
 const filtering = computed(() => query.value.trim() !== '')
+const draggable = computed(() => !filtering.value && drag.canDrag.value)
+
+/**
+ * 标题栏整条可拖，但从「添加」「编辑」按钮上按下时不能起拖。
+ * dragstart 的 target 是标题栏本身而不是按钮，只能在按下那一刻记住落点。
+ */
+let pressedOnButton = false
+
+function onHeadPointerDown(event: PointerEvent): void {
+  pressedOnButton = event.target instanceof Element && event.target.closest('button') !== null
+}
+
+function onHeadDragStart(event: DragEvent): void {
+  if (pressedOnButton) {
+    event.preventDefault()
+    return
+  }
+  drag.startGroup(event, props.entry.group)
+}
 
 function onCardRemove(bookmark: Bookmark): void {
   actions.remove(bookmark)
@@ -30,29 +50,14 @@ function onCardRemove(bookmark: Bookmark): void {
     @dragover.prevent="drag.overGroupBody(entry.group.id)"
     @drop.prevent="drag.dropBookmark()"
   >
-    <header class="panel__head">
-      <span
-        v-if="!filtering"
-        class="panel__handle"
-        draggable="true"
-        role="button"
-        tabindex="-1"
-        aria-label="拖动分组排序"
-        title="拖动分组排序"
-        @dragstart="drag.startGroup($event, entry.group)"
-        @dragend="drag.end()"
-        @click.prevent.stop
-      >
-        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
-          <circle cx="2.5" cy="3" r="1.3" />
-          <circle cx="7.5" cy="3" r="1.3" />
-          <circle cx="2.5" cy="7" r="1.3" />
-          <circle cx="7.5" cy="7" r="1.3" />
-          <circle cx="2.5" cy="11" r="1.3" />
-          <circle cx="7.5" cy="11" r="1.3" />
-        </svg>
-      </span>
-
+    <header
+      class="panel__head"
+      :class="{ 'is-draggable': draggable }"
+      :draggable="draggable ? 'true' : undefined"
+      @pointerdown="onHeadPointerDown"
+      @dragstart="onHeadDragStart"
+      @dragend="drag.end()"
+    >
       <span v-if="entry.group.icon" class="panel__icon" aria-hidden="true">{{ entry.group.icon }}</span>
       <h2 class="panel__name" :title="entry.group.name">{{ entry.group.name }}</h2>
       <span class="panel__count">{{ entry.bookmarks.length }}</span>
@@ -75,17 +80,18 @@ function onCardRemove(bookmark: Bookmark): void {
         <BookmarkCard
           :bookmark="bookmark"
           :highlight="result.highlights.get(bookmark.id)"
+          :active="activeBookmark?.id === bookmark.id"
           :drag="
-            filtering
-              ? undefined
-              : {
+            draggable
+              ? {
                   onStart: (event: DragEvent) => drag.startBookmark(event, bookmark),
                   onEnd: drag.end,
                 }
+              : undefined
           "
           @edit="actions.edit(bookmark)"
           @remove="onCardRemove(bookmark)"
-          @move="actions.move(bookmark)"
+          @move="actions.move(bookmark, $event)"
         />
       </li>
     </ul>
@@ -114,22 +120,12 @@ function onCardRemove(bookmark: Bookmark): void {
   margin-bottom: 12px;
 }
 
-.panel__handle {
-  display: grid;
-  place-items: center;
-  width: 12px;
-  margin-left: -4px;
-  color: var(--text-3);
-  opacity: 0;
+/* 整条标题栏就是分组的拖拽把手；按钮上保持 base.css 的 pointer */
+.panel__head.is-draggable {
   cursor: grab;
-  transition: opacity var(--dur) var(--ease);
 }
 
-.panel:hover .panel__handle {
-  opacity: 1;
-}
-
-.panel__handle:active {
+.panel__head.is-draggable:active {
   cursor: grabbing;
 }
 
@@ -207,10 +203,6 @@ function onCardRemove(bookmark: Bookmark): void {
   /* 小屏固定 3 列，不再按容器宽度自动铺开 */
   .panel__grid {
     grid-template-columns: repeat(3, 1fr);
-  }
-
-  .panel__handle {
-    display: none;
   }
 
   .panel {

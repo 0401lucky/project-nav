@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useFilter } from '@/composables/useFilter'
 import { useSettingsStore } from '@/stores/settings'
 
-const { query, result, firstVisible, clear } = useFilter()
+const { query, result, activeBookmark, moveActive, clear } = useFilter()
 const settings = useSettingsStore()
 
 const input = ref<HTMLInputElement | null>(null)
@@ -14,9 +14,14 @@ const hint = computed(() => {
   if (result.value.noMatches) {
     return `没有匹配的书签，回车用 ${settings.searchEngine.name} 搜索`
   }
-  const first = firstVisible.value
-  return first === null ? '' : `回车打开「${first.title}」`
+  const active = activeBookmark.value
+  return active === null
+    ? ''
+    : `回车打开「${active.title}」 · Shift+回车 用 ${settings.searchEngine.name} 搜`
 })
+
+/** 有内容才显示「用搜索引擎搜」按钮；全是空格时搜了也没意义 */
+const hasTerm = computed(() => query.value.trim() !== '')
 
 function focus(): void {
   input.value?.focus()
@@ -33,27 +38,46 @@ function onEscape(event: KeyboardEvent): void {
   clear()
 }
 
-function onEnter(event: KeyboardEvent): void {
-  // 输入法组词时的回车是「上屏」，不是提交。
+/** 输入法组词时的按键属于候选框，不是给我们的 */
+function isComposing(event: KeyboardEvent): boolean {
   // Safari 的上屏回车晚于 compositionend、isComposing 已是 false，只能靠 keyCode 229 识别
-  if (event.isComposing || event.keyCode === 229) return
+  return event.isComposing || event.keyCode === 229
+}
+
+/** ↑↓ 在匹配结果里移动；←→ 不拦，留给输入光标 */
+function onArrow(event: KeyboardEvent, delta: number): void {
+  if (isComposing(event)) return
+  // 没有匹配时不拦截，方向键保持输入框的默认行为
+  if (activeBookmark.value === null) return
   event.preventDefault()
-  submit()
+  moveActive(delta)
+}
+
+function onEnter(event: KeyboardEvent): void {
+  // 输入法组词时的回车是「上屏」，不是提交
+  if (isComposing(event)) return
+  event.preventDefault()
+  if (event.shiftKey) searchWeb()
+  else submit()
 }
 
 function submit(): void {
-  const term = query.value.trim()
-  if (term === '') return
+  if (query.value.trim() === '') return
 
-  // 必须先看 noMatches 再看有没有可见项：
-  // 没匹配上时首页按 design §6 保持全量，firstVisible 是「全量里的第一条」，
-  // 只判断它非空会把回车变成打开一个跟搜索词无关的书签。
-  const first = firstVisible.value
-  if (!result.value.noMatches && first !== null) {
-    openUrl(first.url)
+  // activeBookmark 只在有匹配时非空：没匹配上时首页按 design §6 保持全量，
+  // 那时打开「全量里的第一条」就成了打开一个跟搜索词无关的书签。
+  const active = activeBookmark.value
+  if (active !== null) {
+    openUrl(active.url)
     return
   }
+  searchWeb()
+}
 
+/** 不管有没有匹配，都用搜索引擎搜当前词 */
+function searchWeb(): void {
+  const term = query.value.trim()
+  if (term === '') return
   const target = searchUrl(settings.searchEngine.template, term)
   if (target !== null) openUrl(target)
 }
@@ -89,8 +113,14 @@ defineExpose({ focus })
         autocomplete="off"
         spellcheck="false"
         @keydown.enter="onEnter"
+        @keydown.down="onArrow($event, 1)"
+        @keydown.up="onArrow($event, -1)"
         @keydown.esc.prevent="onEscape"
       />
+
+      <button v-if="hasTerm" class="search__engine" type="button" @click="searchWeb">
+        用 {{ settings.searchEngine.name }} 搜
+      </button>
 
       <button
         v-if="query !== ''"
@@ -166,6 +196,23 @@ defineExpose({ focus })
 }
 
 .search__clear:hover {
+  background: rgb(255 255 255 / 0.14);
+  color: var(--text);
+}
+
+.search__engine {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-pill);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.search__engine:hover {
   background: rgb(255 255 255 / 0.14);
   color: var(--text);
 }

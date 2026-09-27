@@ -6,7 +6,7 @@
 // 落在 drop 时再乐观重排，store 的失败回滚目标天然就是拖前状态，
 // 不需要第二套回滚机制。拖拽过程中用落点指示线给反馈。
 
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useDataStore } from '@/stores/data'
 import type { Bookmark, Group } from '@/types'
 import { dropIndexFor, planDrop } from './drag'
@@ -17,6 +17,9 @@ interface DragState {
   kind: DragKind
   id: string
 }
+
+/** 与各组件里窄屏样式的断点保持一致 */
+const NARROW_QUERY = '(max-width: 640px)'
 
 /** 落点在哪个分组、哪个下标；-1 表示放在该分组末尾 */
 interface DropTarget {
@@ -29,14 +32,33 @@ export function useDrag() {
 
   const dragging = ref<DragState | null>(null)
   const target = ref<DropTarget | null>(null)
-  /** 拖拽是鼠标专属操作，触屏上藏起手柄（implement.md 9.1） */
+  /** 过滤状态下由 App 关掉：重排接口要全量 id，过滤后只剩子集 */
   const enabled = ref(true)
+
+  /**
+   * 窄屏不给拖（prd 把移动端拖拽列为不在范围内）。
+   * 整张卡片可拖之后，这件事没法再靠 CSS 藏手柄解决：
+   * 卡片与标题栏本身不写 draggable、不绑拖拽处理，才算真的不可拖。
+   */
+  const narrowQuery = window.matchMedia(NARROW_QUERY)
+  const narrow = ref(narrowQuery.matches)
+  function syncNarrow(): void {
+    narrow.value = narrowQuery.matches
+  }
+  onMounted(() => {
+    syncNarrow()
+    narrowQuery.addEventListener('change', syncNarrow)
+  })
+  onBeforeUnmount(() => narrowQuery.removeEventListener('change', syncNarrow))
+
+  /** 卡片与分组标题栏是否可拖 */
+  const canDrag = computed(() => enabled.value && !narrow.value)
 
   const isDraggingBookmark = computed(() => dragging.value?.kind === 'bookmark')
   const isDraggingGroup = computed(() => dragging.value?.kind === 'group')
 
   function startBookmark(event: DragEvent, bookmark: Bookmark): void {
-    if (!enabled.value) return
+    if (!canDrag.value) return
     dragging.value = { kind: 'bookmark', id: bookmark.id }
     target.value = null
     // 要让拖拽生效必须 setData，值本身不用
@@ -45,7 +67,7 @@ export function useDrag() {
   }
 
   function startGroup(event: DragEvent, group: Group): void {
-    if (!enabled.value) return
+    if (!canDrag.value) return
     dragging.value = { kind: 'group', id: group.id }
     target.value = null
     event.dataTransfer?.setData('text/plain', group.id)
@@ -152,6 +174,7 @@ export function useDrag() {
   return {
     dragging,
     enabled,
+    canDrag,
     isDraggingBookmark,
     isDraggingGroup,
     startBookmark,

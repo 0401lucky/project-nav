@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端规范索引与性能预算"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "验证命令、禁用模式与测试要求"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "核对待删除项与 flush、不整表回滚"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "核对组件与无障碍约定"}
