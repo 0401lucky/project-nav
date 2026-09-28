@@ -63,3 +63,27 @@
 ### Next Steps
 
 - DEEIX Chat 和 Google AI Studio 旧缓存可各点一次重新抓取以应用反白。父任务记录保留，未纳入本次归档。
+
+
+## Session 3: 归档图标与首页优化父任务
+<!-- trellis-session: v=2 fp=7b4063990441b2c6 -->
+
+**Date**: 2026-09-28
+**Task**: 归档图标与首页优化父任务
+**Branch**: `main`
+
+### Summary
+
+用户明确要求归档父任务。三个子任务的实现、验收与部署均已完成；用户确认 DEEIX Chat 和 Google AI Studio 已重新抓取，其他缺图标和同名书签无需处理。本轮只更新收口记录并归档，不新增功能任务。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a72f508` | feat(icons): 图标解析重做，支持补抓、公共服务获取与手动上传 |
+| `1870c35` | feat(home): 首页操作易用性改进 |
+| `cd98205` | feat(home): 完成首页视觉调整并修复端到端测试隔离 |
+
+### Status
+
+[OK] **Completed**
