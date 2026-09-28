@@ -19,7 +19,7 @@ docker compose up -d --build
 ```
 
 打开 `http://localhost:3000`，输入 `.env` 里设置的密码。首次启动会自动建好
-「常用」分组、生成收藏按钮令牌，并把 4 组内置壁纸写进库。
+「常用」分组、生成收藏按钮令牌，并把 8 组内置壁纸写进库。
 
 `SESSION_SECRET` 用 `openssl rand -hex 32` 生成，长度不足 32 字节会拒绝启动。
 

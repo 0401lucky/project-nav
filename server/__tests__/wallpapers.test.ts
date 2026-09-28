@@ -189,7 +189,7 @@ describe('已提交的内置壁纸产物', () => {
   it('manifest 可读，且每张每档都不超过 300KB', () => {
     const manifest = readBuiltinManifest([PUBLIC_WALLPAPER_DIR])
     assert.ok(manifest, `读不到 ${PUBLIC_WALLPAPER_DIR}/manifest.json，先跑 npm run build:wallpapers`)
-    assert.equal(manifest.wallpapers.length, 8, '四组主题，横竖各一张')
+    assert.equal(manifest.wallpapers.length, 16, '八组主题，横竖各一张')
 
     for (const entry of manifest.wallpapers) {
       assert.ok(entry.widths.length >= 1, `${entry.id} 至少要有主档`)
@@ -211,13 +211,20 @@ describe('已提交的内置壁纸产物', () => {
     }
 
     // 横竖必须成对，前端才能按屏幕方向选
-    const pairs = new Map<string, number>()
+    const pairs = new Map<string, string[]>()
     for (const entry of manifest.wallpapers) {
       const key = entry.pairId ?? entry.id
-      pairs.set(key, (pairs.get(key) ?? 0) + 1)
+      const orientations = pairs.get(key) ?? []
+      orientations.push(entry.orientation)
+      pairs.set(key, orientations)
     }
-    for (const [pairId, count] of pairs) {
-      assert.equal(count, 2, `主题 ${pairId} 应该有横竖两张`)
+    assert.equal(pairs.size, 8, '应该有八组独立主题')
+    for (const [pairId, orientations] of pairs) {
+      assert.deepEqual(
+        orientations.sort(),
+        ['landscape', 'portrait'],
+        `主题 ${pairId} 应该恰好有一张横版和一张竖版`,
+      )
     }
   })
 })

@@ -72,6 +72,78 @@
         941,
         471
       ]
+    },
+    {
+      "id": "w-05-landscape",
+      "pairId": "w-05",
+      "orientation": "landscape",
+      "widths": [
+        1672,
+        836
+      ]
+    },
+    {
+      "id": "w-05-portrait",
+      "pairId": "w-05",
+      "orientation": "portrait",
+      "widths": [
+        940,
+        470
+      ]
+    },
+    {
+      "id": "w-06-landscape",
+      "pairId": "w-06",
+      "orientation": "landscape",
+      "widths": [
+        1672,
+        836
+      ]
+    },
+    {
+      "id": "w-06-portrait",
+      "pairId": "w-06",
+      "orientation": "portrait",
+      "widths": [
+        941,
+        471
+      ]
+    },
+    {
+      "id": "w-07-landscape",
+      "pairId": "w-07",
+      "orientation": "landscape",
+      "widths": [
+        1672,
+        836
+      ]
+    },
+    {
+      "id": "w-07-portrait",
+      "pairId": "w-07",
+      "orientation": "portrait",
+      "widths": [
+        940,
+        470
+      ]
+    },
+    {
+      "id": "w-08-landscape",
+      "pairId": "w-08",
+      "orientation": "landscape",
+      "widths": [
+        1672,
+        836
+      ]
+    },
+    {
+      "id": "w-08-portrait",
+      "pairId": "w-08",
+      "orientation": "portrait",
+      "widths": [
+        941,
+        471
+      ]
     }
   ]
 }
