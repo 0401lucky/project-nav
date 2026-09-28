@@ -1,0 +1,30 @@
+{
+  "id": "icon-ui-refresh",
+  "name": "icon-ui-refresh",
+  "title": "图标解析修复与首页界面交互优化",
+  "description": "修复书签图标解析失败，并改善首页视觉与操作易用性",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "0401lucky",
+  "assignee": "0401lucky",
+  "createdAt": "2026-09-25",
+  "completedAt": "2026-09-28",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": "cd98205",
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-25-icon-resolution",
+    "09-25-home-visual-refresh",
+    "09-25-home-interaction"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "2026-09-28 用户明确要求归档：三个子任务已完成并上线；用户确认两枚深色图标已重新抓取，其余缺图标与同名书签无需再处理。",
+  "meta": {}
+}
