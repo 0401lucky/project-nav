@@ -15,12 +15,12 @@
   "branch": "main",
   "base_branch": "main",
   "worktree_path": null,
-  "commit": null,
+  "commit": "82fcebd",
   "pr_url": null,
   "subtasks": [],
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "壁纸提交 aa7c5ec；分组折叠最终复核通过：266 单测、36 E2E、typecheck/build 全绿。用户已授权两项一起推送上线，正在发布；本轮交互式浏览器复核因企业网络策略受限，见 verification.md。",
+  "notes": "82fcebd 已推送 main 并部署到 yoyo-9 /root/apps/nav；新增壁纸与分组折叠上线。266 单测、36 E2E、typecheck/build 通过；容器 healthy、重启 0，9 分组/51 书签/36 图标及设置不变，壁纸 8→16。备份 20260928T134810Z-82fcebd；公网交互式复核受浏览器企业网络策略限制，见 verification.md。",
   "meta": {}
 }

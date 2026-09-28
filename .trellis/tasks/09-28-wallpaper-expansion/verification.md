@@ -42,3 +42,16 @@
 - 本轮主会话尝试交互式页面复核时，浏览器安全策略阻止生产域名与本地 3110，没有绕过；此前的桌面/手机截图及本轮独立 E2E 是页面证据，本轮不宣称完成人工浏览器复核。
 - 前端规范同步折叠偏好、搜索派生展示、存储降级和标题按钮冒泡规则。
 - 壁纸提交 `aa7c5ec` 复核：旧 8 条记录及原资产未变，新 40 个产物最大 114,297 字节。
+
+## 生产发布（2026-09-28 晚）
+
+- 已推送 GitHub `0401lucky/project-nav` main，应用版本 `82fcebd`，包含壁纸提交 `aa7c5ec`。
+- 服务器 SSH 别名 `yoyo-9`（yunyou-9 / 64.83.25.9），目录 `/root/apps/nav`，继续使用 `compose.server.yml`；容器仍绑定 `127.0.0.1:8096`。
+- 站点入口：`https://nav.lucky0625.qzz.io/`。本轮未通过公网浏览器复核；审核明确拒绝该域名和本地 3110，未尝试其他浏览器或旁路访问。
+- 发布包 SHA256：`703b9d48c0f770d0585d4d09572fce9a6bb6f5423810d62086ac3c83d80b7d3c`。
+- 新镜像：`sha256:d9c82b507e650f19f70108cabc43b209f0424aea21c685df1665663b8059b55d`；`.deployed-revision` 为 `82fcebd`。
+- 先构建，再停 nav 备份数据并切换；备份 `/root/apps/nav-backups/20260928T134810Z-82fcebd/` 包含旧源码、配置、镜像信息、数据指纹和 `data-before.tar.gz`（gzip 检查通过）。
+- 数据指纹：分组 9、书签 51、图标文件 36，分组/书签/设置/图标/上传壁纸完全不变；内置壁纸仅新增预期 w-05 至 w-08 的 8 行，旧行原样保留，总计 16 张 / 8 组。SQLite integrity_check=ok。
+- `.env` 与 `compose.server.yml` SHA256 前后相同；容器 healthy、RestartCount=0，本机未登录 `/api/bootstrap`=401；启动日志显示内置壁纸 16 张，无启动异常。
+- 回滚：在 `/root/apps/nav` 执行 `docker tag personal-bookmark-nav:rollback-20260928T134810Z-82fcebd personal-bookmark-nav:latest`，再执行 `docker compose -f compose.server.yml up -d --no-build --no-deps --force-recreate nav`。此镜像回滚不删除新增壁纸记录；如需数据还原，用停机备份另行操作，避免覆盖上线后的用户编辑。
+- 本地部署证据保存在 `.playwright-mcp/collapse-deploy/`；服务器部署档案同步更新到 `D:/code/服务器项目部署与记录/`。
