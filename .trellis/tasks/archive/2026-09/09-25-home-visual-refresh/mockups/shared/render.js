@@ -1,7 +1,7 @@
 /* 三版样稿共用的渲染函数：卡片、分组、顶栏、搜索框、壁纸、样稿工具条。
    用普通脚本而不是 ES 模块：直接双击用 file:// 打开时，浏览器会拦掉模块脚本。 */
 ;(function () {
-  const WP_BASE = '../../../../public/wallpapers/'
+  const WP_BASE = '../../../../../../public/wallpapers/'
   const WALLPAPERS = [
     { id: 'w-01', portrait: 941 },
     { id: 'w-02', portrait: 940 },

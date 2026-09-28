@@ -38,4 +38,14 @@
 
 ## 后续边界
 
-本轮完成本地实现与验收，尚未发布线上。上线后仍需在 DEEIX Chat 与 Google AI Studio 的编辑面板各点一次「重新抓取」更新旧缓存；本地验证使用同一服务端转码链路的上传图标和原图检测，没有对线上数据执行迁移。
+本地验收后，用户于 2026-09-28 明确授权推送 main 并部署，发布结果见下。DEEIX Chat 与 Google AI Studio 的旧缓存仍由用户在编辑面板各点一次「重新抓取」更新，没有自动迁移线上图标。
+
+## 生产发布（2026-09-28）
+
+- GitHub：`0401lucky/project-nav` 的 main 已推送应用提交 `cd98205`。
+- 服务器：yunyou-9，`64.83.25.9`，SSH 别名 `yoyo-9` / 端口 48734；目录 `/root/apps/nav`；使用 `compose.server.yml`，容器 `nav` 仍绑定 `127.0.0.1:8096`。
+- 站点：`https://nav.lucky0625.qzz.io`。发布归档 SHA256 为 `7d1e39f1c86886f5e5da33c866acfdc650949d5a287b4fe4ce5bbbfc624700b9`，镜像 ID 为 `sha256:dfc453c0b24a88bff95c87ff225ab29528228b1871a2b897077cc1431dccc600`。
+- 先构建后切换；停站期间备份数据到 `/root/apps/nav-backups/20260928T070624Z-cd98205/data-before.tar.gz`。同目录保存旧源码与配置，旧镜像 tag 为 `personal-bookmark-nav:rollback-20260928T070624Z-cd98205`。
+- 切换前后分组、书签、设置、壁纸记录和全部图标文件摘要一致；9 组、52 条书签、31 个图标保留，SQLite integrity_check=ok。密码配置及服务器 Compose 文件摘要一致。
+- 容器 healthy / RestartCount=0；本机未登录 bootstrap=401；公网首页及新版 JS/CSS=200。已登录公网浏览器复核桌面 52 张卡片、单模糊层、搜索判重、可点击新增面板和手机三列布局，未出现页面 JS 异常。
+- 生产截图与指标在 `.playwright-mcp/nav-deploy/production-desktop.png`、`production-mobile.png` 和 `production-checks.json`。部署机器定位、备份和回滚命令同步到 `D:/code/服务器项目部署与记录/yunyou-9-64.83.25.9.md` 与该目录 README。
