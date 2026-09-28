@@ -9,7 +9,7 @@
 
 | 形态 | 状态放哪 | 每次调用的结果 | 现有例子 |
 | --- | --- | --- | --- |
-| **A. 模块级共享** | 模块顶层 `const x = ref()` | 同一个引用，跨组件同步 | `useFilter`、`useToast` |
+| **A. 模块级共享** | 模块顶层 `const x = ref()` | 同一个引用，跨组件同步 | `useFilter`、`useToast`、`useGroupCollapse` |
 | **B. 实例级** | 函数体内 `const x = ref()` | 各自独立的一份 | `useDrag`、`useHotkeys` |
 
 ### A 形态：模块级共享
@@ -160,7 +160,10 @@ A 形态的状态活在模块作用域，**永远不重置**。登录、登出�
 （`App.vue` 里 logout 会调 `data.reset()`、`settings.reset()`），
 不要指望「组件没了状态就没了」。
 
+浏览器级非敏感 UI 偏好是保留状态的明确例外：`useGroupCollapse` 在登录切换及组件卸载时
+保留选择，首次使用才读取 localStorage。读写异常静默降级为内存状态；它不承担服务端同步。
+
 ### 用 composable 代替 store
 
-只有两处用到、又不涉及跨页面生命周期的状态，用 A 形态 composable 就够。
+跨组件 UI 状态或浏览器级偏好、无需服务端同步时，用 A 形态 composable 就够。
 加 store 的门槛见 [state-management.md](./state-management.md)。

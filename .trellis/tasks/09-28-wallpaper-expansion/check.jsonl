@@ -1,3 +1,6 @@
 {"file":".trellis/spec/frontend/index.md","reason":"资源预算"}
 {"file":".trellis/spec/frontend/quality-guidelines.md","reason":"验证与范围约束"}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"折叠按钮可访问性与拖拽兼容"}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"本地折叠状态和生命周期"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"折叠不能污染服务端数据或派生搜索结果"}
 {"file":".trellis/tasks/09-28-wallpaper-expansion/research/integration.md","reason":"保持旧资产不变、验证横竖配对"}

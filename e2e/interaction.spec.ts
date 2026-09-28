@@ -222,11 +222,16 @@ test.describe('拖整张卡片 / 整个标题栏', () => {
     const head = panelNamed(page, second).locator('.panel__head')
     const headBox = await head.boundingBox()
     const countBox = await head.locator('.panel__count').boundingBox()
+    const toolsBox = await head.locator('.panel__tools').boundingBox()
     expect(headBox).not.toBeNull()
     expect(countBox).not.toBeNull()
+    expect(toolsBox).not.toBeNull()
+    // 标题会按可用宽度省略；固定加 16px 可能落到「添加」按钮上。
+    const gapStart = countBox!.x + countBox!.width
+    expect(toolsBox!.x).toBeGreaterThan(gapStart)
     const cell = page.locator('.panels__cell', { has: page.locator('.panel__name', { hasText: first }) })
     await head.dragTo(cell, {
-      sourcePosition: { x: countBox!.x - headBox!.x + countBox!.width + 16, y: headBox!.height / 2 },
+      sourcePosition: { x: (gapStart + toolsBox!.x) / 2 - headBox!.x, y: headBox!.height / 2 },
       // 落在目标面板上半部：按上下半边判断前后
       targetPosition: { x: 40, y: 8 },
     })
@@ -237,12 +242,12 @@ test.describe('拖整张卡片 / 整个标题栏', () => {
     expect(await order(), '分组顺序要落到服务端').toBe(true)
 
     // 标题栏整条可拖之后，按钮的点击不能受影响
-    await panelNamed(page, first).getByRole('button', { name: '编辑' }).click()
+    await panelNamed(page, first).getByRole('button', { name: '编辑', exact: true }).click()
     await expect(page.locator('.sheet__title')).toHaveText('编辑分组')
     await page.getByRole('button', { name: '关闭' }).click()
     await expect(page.locator('.sheet')).toHaveCount(0)
 
-    await panelNamed(page, first).getByRole('button', { name: '添加' }).click()
+    await panelNamed(page, first).getByRole('button', { name: '添加', exact: true }).click()
     await expect(page.locator('.sheet__title')).toHaveText('添加书签')
     await page.getByRole('button', { name: '关闭' }).click()
   })
@@ -285,7 +290,7 @@ test('分组标题栏的「添加」默认选中这个分组，不是排序第�
   const targetId = await createGroup(page, target)
   await page.reload()
 
-  await panelNamed(page, target).getByRole('button', { name: '添加' }).click()
+  await panelNamed(page, target).getByRole('button', { name: '添加', exact: true }).click()
   await expect(page.locator('.sheet__title')).toHaveText('添加书签')
   await expect(page.locator('#bm-group')).toHaveValue(targetId)
 

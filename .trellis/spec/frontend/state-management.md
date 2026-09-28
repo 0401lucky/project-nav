@@ -35,8 +35,8 @@ export const useDataStore = defineStore('data', () => {
 判断顺序：
 
 1. 只有当前组件用 → 组件内 `ref`
-2. 两三个组件用、不涉及持久或跨页面 → 模块级 `ref` 的 composable（见 [hook-guidelines.md](./hook-guidelines.md)）
-3. 跨页面存活、或本身就是服务端数据 → store
+2. 跨组件 UI 状态、无需服务端同步 → 模块级 `ref` 的 composable（见 [hook-guidelines.md](./hook-guidelines.md)）；浏览器折叠偏好也属于此类
+3. 服务端数据、登录态及其同步生命周期 → store
 
 ---
 
@@ -50,6 +50,24 @@ export const useDataStore = defineStore('data', () => {
 | 派生数据 | `computed`，**不要**另存一份 | `byGroup`、`currentWallpaper`、`visibleByGroup` |
 
 派生状态永远从源数据算，不要用 `watch` 同步出第二份 ref——那会立刻产生一致性问题。
+
+### 分组折叠偏好
+
+`useGroupCollapse()` 共享模块级 `Set<string>`，仅通过 `isCollapsed(id)`、`toggle(id)`、
+`expand(id)` 访问；localStorage 的 `nav.collapsedGroups.v1` 保存稳定分组 id 数组。
+首次调用时读取，刷新或重新打开后恢复，组件卸载、搜索过滤及登录切换不清除偏好。
+`parseCollapsedGroups(raw: string | null): string[]` 拒绝损坏 JSON、非数组或混合类型，
+过滤空字符串并去重；存储读取异常使用默认展开，写入失败保留当次内存状态。
+
+- 实际是否收起由 `!searchHasMatches && isCollapsed(id)` 派生；
+  `searchHasMatches` 判断 `result.visibleIds !== null`，不能只看查询非空。
+- 匹配时临时展开并禁用折叠按钮；清空或无匹配时回到保存值，不把搜索展示写回偏好。
+- 折叠只控制卡片挂载，不过滤 store 的分组/书签；排序接口仍需要全量 id。
+- `BookmarkForm` 仅在 `createBookmark()` 返回非 null 后 `expand(created.groupId)`；
+  取消、失败、编辑和拖入都不自动改动偏好。
+
+回归点见 `groupCollapse.test.ts` 与 `e2e/group-collapse.spec.ts`：独立折叠、刷新/重开、
+搜索卸载后恢复、存储访问受限与写入配额失败、新增成功/失败、隐藏链接不参与 Tab。
 
 ---
 

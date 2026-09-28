@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import BookmarkCard from '@/components/home/BookmarkCard.vue'
 import { useFilter } from '@/composables/useFilter'
+import { useGroupCollapse } from '@/composables/useGroupCollapse'
 import { useHomeContext } from '@/composables/homeContext'
 import type { GroupWithBookmarks } from '@/stores/data'
 import type { Bookmark } from '@/types'
@@ -11,6 +12,13 @@ const props = defineProps<{ entry: GroupWithBookmarks; groupIndex: number }>()
 // 高亮区间来自搜索，直接在这里取，省得把整张表 prop 透传下来
 const { result, query, activeBookmark } = useFilter()
 const { drag, actions } = useHomeContext()
+const collapse = useGroupCollapse()
+const searchHasMatches = computed(() => result.value.visibleIds !== null)
+// 搜索只改变显示，不改保存的偏好；无匹配时首页仍按原来的折叠状态展示。
+const collapsed = computed(() => !searchHasMatches.value && collapse.isCollapsed(props.entry.group.id))
+const collapseLabel = computed(() => searchHasMatches.value
+  ? `搜索中已展开「${props.entry.group.name}」`
+  : `${collapsed.value ? '展开' : '收起'}「${props.entry.group.name}」`)
 
 /**
  * 过滤状态下不给拖：重排接口要求带上该分组的**全部**书签 id，
@@ -25,17 +33,31 @@ const draggable = computed(() => !filtering.value && drag.canDrag.value)
  * dragstart 的 target 是标题栏本身而不是按钮，只能在按下那一刻记住落点。
  */
 let pressedOnButton = false
+let draggedHead = false
 
 function onHeadPointerDown(event: PointerEvent): void {
+  draggedHead = false
   pressedOnButton = event.target instanceof Element && event.target.closest('button') !== null
 }
 
 function onHeadDragStart(event: DragEvent): void {
-  if (pressedOnButton) {
+  if (pressedOnButton || !draggable.value) {
     event.preventDefault()
     return
   }
+  draggedHead = true
   drag.startGroup(event, props.entry.group)
+}
+
+function toggleCollapse(): void {
+  if (!searchHasMatches.value) collapse.toggle(props.entry.group.id)
+}
+
+function onHeadClick(event: MouseEvent): void {
+  // 拖拽之后的 click 不算折叠；下一次 pointerdown 才开始一次新的正常点击。
+  // 按钮只在这里排除，仍须冒泡到 document 以关闭其他分组的卡片菜单。
+  if (draggedHead || (event.target instanceof Element && event.target.closest('button'))) return
+  toggleCollapse()
 }
 
 function onCardRemove(bookmark: Bookmark): void {
@@ -46,7 +68,7 @@ function onCardRemove(bookmark: Bookmark): void {
 <template>
   <section
     class="panel"
-    :class="{ 'is-dragging-over': drag.isDropAtEnd(entry.group.id, entry.bookmarks.length) }"
+    :class="{ 'is-collapsed': collapsed, 'is-dragging-over': drag.isDropAtEnd(entry.group.id, entry.bookmarks.length) }"
     @dragover.prevent="drag.overGroupBody(entry.group.id)"
     @drop.prevent="drag.dropBookmark()"
   >
@@ -55,9 +77,23 @@ function onCardRemove(bookmark: Bookmark): void {
       :class="{ 'is-draggable': draggable }"
       :draggable="draggable ? 'true' : undefined"
       @pointerdown="onHeadPointerDown"
+      @click="onHeadClick"
       @dragstart="onHeadDragStart"
       @dragend="drag.end()"
     >
+      <button
+        class="panel__toggle"
+        type="button"
+        :aria-label="collapseLabel"
+        :title="searchHasMatches ? '搜索期间自动展开，清空搜索后恢复' : collapseLabel"
+        :aria-expanded="!collapsed"
+        :disabled="searchHasMatches"
+        @click="toggleCollapse"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9 5 7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
       <span v-if="entry.group.icon" class="panel__icon" aria-hidden="true">{{ entry.group.icon }}</span>
       <h2 class="panel__name" :title="entry.group.name">{{ entry.group.name }}</h2>
       <span class="panel__count">{{ entry.bookmarks.length }}</span>
@@ -89,9 +125,10 @@ function onCardRemove(bookmark: Bookmark): void {
       </span>
     </header>
 
-    <p v-if="entry.bookmarks.length === 0" class="panel__empty">拖动书签到这里，或点 +</p>
+    <p v-if="!collapsed && entry.bookmarks.length === 0" class="panel__empty">拖动书签到这里，或点 +</p>
 
-    <ul v-else class="panel__grid">
+    <!-- 卸载卡片才能同时移除 Tab 目标和 Teleport 菜单。排序数据仍保持全量。 -->
+    <ul v-else-if="!collapsed" class="panel__grid">
       <li
         v-for="(bookmark, index) in entry.bookmarks"
         :key="bookmark.id"
@@ -143,6 +180,30 @@ function onCardRemove(bookmark: Bookmark): void {
   min-width: 0;
   height: 26px;
   padding: 0 6px;
+  cursor: pointer;
+}
+
+.panel__toggle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  height: 24px;
+  color: var(--text-2);
+  border-radius: var(--r-card);
+}
+
+.panel__toggle:hover:not(:disabled) {
+  background: var(--glass-card-hover);
+  color: var(--text);
+}
+
+.panel__toggle svg {
+  transform: rotate(90deg);
+  transition: transform var(--dur) var(--ease);
+}
+
+.is-collapsed .panel__toggle svg {
+  transform: rotate(0deg);
 }
 
 /* 整条标题栏就是分组的拖拽把手；按钮上保持 base.css 的 pointer */
@@ -187,6 +248,7 @@ function onCardRemove(bookmark: Bookmark): void {
 }
 
 .panel:hover .panel__tools,
+.panel.is-collapsed .panel__tools,
 .panel:focus-within .panel__tools {
   opacity: 1;
 }
@@ -236,6 +298,15 @@ function onCardRemove(bookmark: Bookmark): void {
 }
 
 @media (max-width: 640px) {
+  .panel__head {
+    height: 36px;
+  }
+
+  .panel__toggle {
+    flex-basis: 32px;
+    height: 32px;
+  }
+
   /* 小屏固定 3 列竖排卡片 */
   .panel__grid {
     grid-template-columns: repeat(3, 1fr);

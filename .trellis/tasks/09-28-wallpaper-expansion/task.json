@@ -1,8 +1,8 @@
 {
   "id": "wallpaper-expansion",
   "name": "wallpaper-expansion",
-  "title": "新增多样化人物壁纸",
-  "description": "新增四组外貌和气质不同的成年男性壁纸，每组横竖配对并接入现有壁纸选择器",
+  "title": "新增人物壁纸与分组折叠",
+  "description": "新增四组乙游风横竖屏壁纸，支持首页分组独立折叠，并一起发布上线",
   "status": "in_progress",
   "dev_type": null,
   "scope": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "最终改为用户指定的精致3D/半写实乙游风；4组8张已生成接入并通过本地验收，见 verification.md。新版预览位于3110，尚未推送或部署，待用户看图反馈。",
+  "notes": "壁纸提交 aa7c5ec；分组折叠最终复核通过：266 单测、36 E2E、typecheck/build 全绿。用户已授权两项一起推送上线，正在发布；本轮交互式浏览器复核因企业网络策略受限，见 verification.md。",
   "meta": {}
 }

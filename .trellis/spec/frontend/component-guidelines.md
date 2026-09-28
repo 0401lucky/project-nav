@@ -248,6 +248,13 @@ Teleport 之后 `z-index` 只跟 `.card-menu` 自己的值（60）有关。代�
 刚打开就被自己的 `dismiss` 关掉。代价是「点另一张卡片的更多按钮」也收不到——
 所以开关状态放在模块级共享（`openMenuId`），由它来保证互斥。
 
+分组标题的折叠、添加、编辑按钮需要保留 click 冒泡，让 document 关闭其他组已打开的菜单。
+`GroupPanel.onHeadClick` 检查 `event.target.closest('button')` 排除按钮，不能用 `@click.stop`
+防止误折叠。拖拽后通过 `draggedHead` 抑制补发 click，下一次 pointerdown 清除标记。
+收起时卸载卡片列表，移除隐藏链接及其 Teleport 菜单；标题、数量和操作入口保留。
+折叠按钮常显，使用含分组名的 aria-label 和 aria-expanded；匹配搜索期间显示展开且禁用。
+回归必须包含「甲组菜单打开后折叠/操作乙组」，仅测菜单所属组折叠不能验证外部点击关闭。
+
 ### 在 `<script setup>` 里再导入一次上面普通 `<script>` 已导入的符号
 
 两块共享模块作用域，重复导入会直接报错。看 `BookmarkCard.vue` 顶部那行注释。

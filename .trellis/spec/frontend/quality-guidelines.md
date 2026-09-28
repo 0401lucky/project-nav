@@ -53,8 +53,9 @@ NAV_PASSWORD=<密码> npm run e2e
   都要说明原因
 - **所有面向用户的文案用中文**，代码标识符用英文
 - **错误必须让用户看见。** 要么 `toast.error(...)`，要么表单内的 `.field__error`
-  （带 `role="alert"`）。不允许静默 `catch {}`——唯一的例外是
-  `loadPublicManifest` 的兜底，那里失败只意味着登录屏没有背景
+  （带 `role="alert"`）。不允许静默 `catch {}`，已明确的降级例外是
+  `loadPublicManifest`（登录屏背景不可用）和 `useGroupCollapse` 的 localStorage 读写
+  （读失败默认展开、写失败保留内存状态）；后者须覆盖读取异常与配额失败的回归测试
 - **异步操作的按钮要有进行中状态**：`saving` / `fetching` / `pending` 置位并禁用按钮
 - **浮层控件补齐三件套**：`aria-label`、键盘可达、点击外部收起
 

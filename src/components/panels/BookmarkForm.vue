@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ApiError, api, describeError } from '@/api/client'
 import type { BookmarkInput } from '@/api/client'
 import FallbackIcon from '@/components/ui/FallbackIcon.vue'
+import { useGroupCollapse } from '@/composables/useGroupCollapse'
 import { useDataStore } from '@/stores/data'
 import type { Bookmark, IconRefreshResponse } from '@/types'
 
@@ -18,6 +19,7 @@ const props = defineProps<{
 const emit = defineEmits<{ saved: []; cancel: [] }>()
 
 const data = useDataStore()
+const collapse = useGroupCollapse()
 
 const isEdit = computed(() => props.bookmark != null)
 
@@ -185,10 +187,14 @@ async function save(): Promise<void> {
     ...(chosenIcon.value === null ? {} : { iconUrl: chosenIcon.value }),
   }
 
-  const ok =
-    props.bookmark != null
-      ? await data.updateBookmark(props.bookmark.id, input)
-      : (await data.createBookmark(input)) !== null
+  let ok: boolean
+  if (props.bookmark != null) {
+    ok = await data.updateBookmark(props.bookmark.id, input)
+  } else {
+    const created = await data.createBookmark(input)
+    ok = created !== null
+    if (created !== null) collapse.expand(created.groupId)
+  }
 
   saving.value = false
   if (ok) emit('saved')
