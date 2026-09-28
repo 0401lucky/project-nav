@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>样稿 A · 左栏海报</title>
+    <link rel="stylesheet" href="shared/base.css" />
+    <style>
+      /*
+        A 左栏海报：所有内容收进左栏，右侧整块留给壁纸人物。
+        全页零模糊层，文字可读性靠左侧渐暗遮罩；分组不加面板底，只用标题和细线分隔。
+      */
+      :root {
+        --col-w: clamp(560px, 56vw, 920px);
+        /* 渐暗跟着左栏宽度走：栏内压暗，栏外很快透明，人物不被盖 */
+        --wp-scrim: linear-gradient(
+            90deg,
+            rgb(7 9 13 / 0.86) 0,
+            rgb(7 9 13 / 0.8) calc(var(--col-w) - 200px),
+            rgb(7 9 13 / 0.4) calc(var(--col-w) + 40px),
+            rgb(7 9 13 / 0) calc(var(--col-w) + 300px)
+          ),
+          linear-gradient(180deg, rgb(0 0 0 / 0.3), rgb(0 0 0 / 0) 20%);
+      }
+
+      .app {
+        width: var(--col-w);
+        padding: 0 var(--page-x);
+      }
+
+      .search {
+        margin-bottom: 22px;
+      }
+
+      .main {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        /* 滚动条挪到栏外沿，别贴着卡片 */
+        margin-right: calc(var(--page-x) * -1);
+        padding: 0 var(--page-x) 40px 0;
+      }
+
+      /* 分组两列错落排：小分组不再独占一整行 */
+      .panels {
+        columns: 2 300px;
+        column-gap: 36px;
+      }
+
+      .panels__cell {
+        break-inside: avoid;
+        padding-bottom: 24px;
+      }
+
+      .panel__head {
+        height: 28px;
+        margin-bottom: 6px;
+      }
+
+      .panel__name {
+        font-size: 12px;
+        color: var(--text-2);
+        letter-spacing: 0.12em;
+      }
+
+      .panel__rule {
+        display: block;
+        flex: 1 1 auto;
+        height: 1px;
+        background: var(--stroke);
+      }
+
+      .panel__tools {
+        margin-left: 0;
+      }
+
+      .panel__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 2px 8px;
+      }
+
+      /* 卡片不铺底色，悬停才亮：整栏读起来像一张排好版的清单 */
+      .card {
+        padding: 7px 8px;
+      }
+
+      .card:hover {
+        background: rgb(255 255 255 / 0.08);
+      }
+
+      @media (max-width: 640px) {
+        :root {
+          --col-w: 100%;
+          --wp-scrim: linear-gradient(180deg, rgb(7 9 13 / 0.8), rgb(7 9 13 / 0.66) 50%, rgb(7 9 13 / 0.82));
+        }
+
+        .panels {
+          columns: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wp"></div>
+    <div class="app"></div>
+
+    <script src="shared/data.js"></script>
+    <script src="shared/render.js"></script>
+    <script>
+      const { DATA, h, panel, addGroupButton, topbar, search, mountWallpaper, mountToolbar } = window.Mock
+
+      mountWallpaper(document.querySelector('.wp'))
+
+      const panels = h('div', { class: 'panels' }, [
+        ...DATA.map((group) => panel(group)),
+        h('div', { class: 'panels__cell' }, [addGroupButton()]),
+      ])
+
+      document.querySelector('.app').append(topbar(), search(), h('main', { class: 'main' }, [panels]))
+
+      mountToolbar(
+        'a.html',
+        'A 左栏海报：内容收进左栏，右侧整块留给人物；零模糊层，靠左侧渐暗保证可读；分组两列错落，小分组不再独占一行。',
+      )
+    </script>
+  </body>
+</html>

@@ -5,12 +5,29 @@
 // 顺带覆盖「抓取失败仍可手填保存」这条验收点。
 
 import { expect, test } from '@playwright/test'
+import type { BootstrapResponse, Settings } from '../shared/types.ts'
 import { apiJson, login, topmostAt } from './helpers.ts'
 
 /** 连不上的端口，用来触发「抓取失败」但保存照旧成功 */
 const UNREACHABLE = 'http://127.0.0.1:1/primary'
 /** 标题带时间戳：库可能不是干净的，固定标题会让「只应有 1 条」的断言假失败 */
 const NEW_TITLE = `主路径书签 ${Date.now()}`
+
+const createdGroups: string[] = []
+let originalWallpaper: Settings['wallpaper'] | undefined
+
+test.afterEach(async ({ page }) => {
+  for (const id of createdGroups.splice(0)) {
+    await apiJson(page, `/api/groups/${id}`, { method: 'DELETE' })
+  }
+  if (originalWallpaper !== undefined) {
+    await apiJson(page, '/api/settings', {
+      method: 'PATCH',
+      body: { wallpaper: originalWallpaper },
+    })
+    originalWallpaper = undefined
+  }
+})
 
 test('主路径：登录 → 新增 → 拖拽 → 搜索回车 → 切壁纸', async ({ page }) => {
   /*
@@ -27,9 +44,24 @@ test('主路径：登录 → 新增 → 拖拽 → 搜索回车 → 切壁纸', 
 
   await login(page)
 
+  // 自己准备分组和对照书签：无默认分组时也能运行，拖拽不会退化成唯一一项拖自己。
+  const group = await apiJson<{ id: string }>(page, '/api/groups', {
+    method: 'POST',
+    body: { name: `主路径分组 ${Date.now()}` },
+  })
+  createdGroups.push(group.id)
+  const firstTitle = `拖拽对照 ${Date.now()}`
+  await apiJson(page, '/api/bookmarks', {
+    method: 'POST',
+    body: { groupId: group.id, title: firstTitle, url: `${UNREACHABLE}/existing` },
+  })
+  originalWallpaper = (await apiJson<Settings>(page, '/api/settings')).wallpaper
+  await page.reload()
+
   // ---- 1. 贴一个连不上的网址，新增面板照样能保存 ----
   await page.getByRole('button', { name: '新增' }).click()
   await expect(page.locator('.sheet__title')).toHaveText('添加书签')
+  await page.locator('#bm-group').selectOption(group.id)
 
   await page.locator('#bm-url').fill(UNREACHABLE)
   await page.locator('#bm-url').blur()
@@ -41,29 +73,25 @@ test('主路径：登录 → 新增 → 拖拽 → 搜索回车 → 切壁纸', 
 
   await expect(page.locator('.sheet')).toHaveCount(0)
 
-  // 不假设一定落进「常用」：表单默认选的是排序第一的分组，
-  // 而别的用例可能删过或重排过分组。按「新书签实际落在哪个面板」来断言。
+  // 只检查本用例创建的分组，不依赖其他用例留下的内容。
   const card = page.locator('.card-wrap').filter({ hasText: NEW_TITLE })
   const panel = page.locator('.panel', {
     has: page.locator('.card__title', { hasText: NEW_TITLE }),
   })
   const titles = () => panel.locator('.card__title')
 
-  await expect(titles().filter({ hasText: NEW_TITLE })).toHaveCount(1)
-  // 新增的排在该分组最后
-  expect((await titles().allTextContents()).at(-1)).toBe(NEW_TITLE)
+  await expect(titles()).toHaveText([firstTitle, NEW_TITLE])
 
   // ---- 2. 按住卡片本体（不是边缘手柄）拖到分组第一位 ----
-  // 落点取第一格的左上角：dropIndexFor 按左右半边判断前后，正中间会落在它后面
+  // 竖排列表按上下半边判断前后，落点取第一格上半部。
   await card.locator('.card').dragTo(panel.locator('.panel__cell').first(), {
     targetPosition: { x: 8, y: 8 },
   })
-  await expect.poll(async () => (await titles().allTextContents())[0]).toBe(NEW_TITLE)
+  await expect(titles()).toHaveText([NEW_TITLE, firstTitle])
 
   // 重排要落到服务端：刷新后顺序还在
   await page.reload()
-  await expect(titles().first()).toBeVisible()
-  expect((await titles().allTextContents())[0]).toBe(NEW_TITLE)
+  await expect(titles()).toHaveText([NEW_TITLE, firstTitle])
 
   // ---- 3. 搜索回车打开第一条 ----
   await page.locator('.search__input').fill(NEW_TITLE)
@@ -132,15 +160,24 @@ test('连不上服务器时的提示画得出来', async ({ page }) => {
   expect(await topmostAt(page, '.app__error')).toBe('self')
 })
 
-test('清空所有分组后的空状态画得出来', async ({ page }) => {
+test('没有分组时的空状态画得出来，新建入口可点', async ({ page }) => {
   await login(page)
 
-  const boot = await apiJson<{ groups: { id: string }[] }>(page, '/api/bootstrap')
-  for (const group of boot.groups) {
-    await apiJson(page, `/api/groups/${group.id}`, { method: 'DELETE' })
-  }
+  // 只模拟本页的空数据，不能为测空状态删掉服务器上的全部分组和书签。
+  const boot = await apiJson<BootstrapResponse>(page, '/api/bootstrap')
+  await page.route('**/api/bootstrap', (route) =>
+    route.fulfill({ json: { ...boot, groups: [], bookmarks: [] } }),
+  )
   await page.reload()
 
   await expect(page.locator('.empty__title')).toHaveText('还没有书签')
   expect(await topmostAt(page, '.empty__title')).toBe('self')
+  expect(await topmostAt(page, '.empty__action')).toBe('self')
+  await page.getByRole('button', { name: '新建分组' }).click()
+  await expect(page.locator('.sheet__title')).toHaveText('新建分组')
+
+  await page.unroute('**/api/bootstrap')
+  const after = await apiJson<BootstrapResponse>(page, '/api/bootstrap')
+  expect(after.groups).toEqual(boot.groups)
+  expect(after.bookmarks).toEqual(boot.bookmarks)
 })

@@ -72,6 +72,45 @@ export function sniffImage(buf: Buffer): ImageKind | null {
   return null
 }
 
+/** sRGB 通道值（0–255）转线性亮度分量 */
+function linear(channel: number): number {
+  const c = channel / 255
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+}
+
+/**
+ * 判断 RGBA 逐像素数据是不是「深色透明图标」：大片透明，不透明部分又黑又没有彩色。
+ * 阈值按线上 31 个图标实测定下，只命中纯黑线条图标；带白色或彩色主体的偏暗图标不算。
+ * 几乎透明（alpha ≤ 0.05）的像素不计入平均，否则抗锯齿边缘会拉偏结果。
+ */
+export function isDarkGlyph(rgba: Buffer): boolean {
+  let pixels = 0
+  let opaque = 0
+  let sumWeight = 0
+  let sumLuminance = 0
+  let sumSaturation = 0
+  for (let i = 0; i + 3 < rgba.length; i += 4) {
+    pixels++
+    const alpha = rgba[i + 3]! / 255
+    if (alpha > 0.5) opaque++
+    if (alpha <= 0.05) continue
+    const r = rgba[i]!
+    const g = rgba[i + 1]!
+    const b = rgba[i + 2]!
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    sumWeight += alpha
+    sumLuminance += (0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)) * alpha
+    sumSaturation += (max === 0 ? 0 : (max - min) / max) * alpha
+  }
+  return (
+    sumWeight > 0 &&
+    opaque / pixels < 0.7 &&
+    sumLuminance / sumWeight < 0.05 &&
+    sumSaturation / sumWeight < 0.15
+  )
+}
+
 /** 任意来源的图片字节 → 64px WebP */
 export async function encodeIcon(raw: Buffer): Promise<Step<Buffer>> {
   const kind = sniffImage(raw)
@@ -94,10 +133,15 @@ export async function encodeIcon(raw: Buffer): Promise<Step<Buffer>> {
   }
 
   try {
-    const webp = await input
+    const { data, info } = await input
       .resize(ICON_SIZE, ICON_SIZE, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .webp({ quality: 80 })
-      .toBuffer()
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    // 黑色线条 + 透明底的图标在深色面板上几乎看不见，反成白色；透明部分不动
+    let output = sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+    if (isDarkGlyph(data)) output = output.negate({ alpha: false })
+    const webp = await output.webp({ quality: 80 }).toBuffer()
     return { ok: true, value: webp }
   } catch {
     return { ok: false, reason: '图片无法解码' }

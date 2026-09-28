@@ -14,6 +14,8 @@ export interface CardActions {
   move: (bookmark: Bookmark, groupId: string) => void
   addBookmark: (group: Group) => void
   editGroup: (group: Group) => void
+  /** 分组列表末尾和空状态里的「新建分组」 */
+  addGroup: () => void
 }
 
 export interface HomeContext {

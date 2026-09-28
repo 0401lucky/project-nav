@@ -116,13 +116,11 @@ const { drag, actions } = useHomeContext()
 `styles/tokens.css` 是颜色、圆角、时长、留白的唯一出处。组件里不写字面量：
 
 ```css
-.panel {
-  padding: 14px;
-  background: var(--glass-panel);
+.launcher {
+  background: var(--glass-launcher);
   border: 1px solid var(--stroke);
-  border-radius: var(--r-panel);
-  backdrop-filter: blur(var(--blur-panel));
-  transition: border-color var(--dur) var(--ease);
+  border-radius: var(--r-launcher);
+  backdrop-filter: blur(var(--blur-launcher)) saturate(1.25);
 }
 ```
 
@@ -131,8 +129,19 @@ const { drag, actions } = useHomeContext()
 
 ### 三类容器才准用 backdrop-filter
 
-分组面板 `.panel`、弹出面板 `.sheet` / `.card-menu` / `.toast`、卡片悬停。
+启动器面板 `.launcher`、弹出面板 `.sheet` / `.card-menu` / `.toast`、卡片悬停。
 别处需要半透明背景就用 `--glass-*` 变量配 `rgb()`，不要加模糊。
+首页常驻元素只有 `.launcher` 一层模糊；`.panel` 不设模糊或独立玻璃底色。
+
+### 首页布局与标签
+
+- 桌面端 `.launcher` 固定在左侧，`.app__main` 在内部滚动；分组用 CSS 多列排布，
+  书签是单列紧凑列表。排序沿用 DOM 顺序，书签落点按上下半边判断。
+- ≤640px 时启动器铺满视口，分组单列，书签固定三列竖排；分组头和卡片菜单按钮常显。
+- `data.duplicateTitleKeys` 基于全库计算；同名标题忽略首尾空白和大小写，
+  显示去掉 `www.` 的主机名。不要用搜索结果重新判重，否则提示会随输入消失。
+- `labels.ts` 集中处理首字、色相和标题键。首字跳过符号并转大写；同站同色，
+  色块底色 `hsl(h 26% 28%)`、文字 `hsl(h 55% 84%)`。
 
 ### 移动端
 
@@ -158,7 +167,6 @@ const { drag, actions } = useHomeContext()
 | --- | --- | --- |
 | 壁纸 | `.wallpaper`（fixed, inset 0） | `0`，在 `.app` **之外** |
 | 内容 | `.app` | `1` |
-| 浮动按钮 | `.app__fab` | `5` |
 | 滑出面板 | `.sheet-root` | `30` |
 | 提示 | `.toasts` | `40` |
 | 卡片菜单 | `.card-menu`（Teleport 到 body） | `60` |
@@ -177,13 +185,17 @@ const { drag, actions } = useHomeContext()
 
 ### 铁律二：`backdrop-filter` 会新建层叠上下文
 
-用了 `backdrop-filter` 的组件（分组面板、卡片菜单）内部，`z-index` **只在自身上下文内比较**。
-DOM 中靠后的面板会整块盖在它上面，调多大都没用。
+用了 `backdrop-filter` 的组件（启动器面板、卡片菜单）内部，`z-index` **只在自身上下文内比较**。
+跨上下文的遮挡不能靠增大后代的 `z-index` 解决。
+
+`.launcher` 还会成为 `position: fixed` 后代的包含块，并用 `overflow: hidden` 裁切内容。
+所以 `SlidePanel` 和 `Toast` 必须放在 `.launcher` 外，卡片菜单继续 Teleport 到 body。
+验收时打开弹层，检查其贴合视口、未被启动器边界裁切，并用 `elementFromPoint` 检查命中。
 
 所以卡片菜单必须 Teleport 出去：
 
 ```vue
-<!-- BookmarkCard.vue：菜单留在卡片里时，会被后面的分组面板盖住 -->
+<!-- BookmarkCard.vue：菜单留在启动器内部时，fixed 会受祖先包含块与裁切限制 -->
 <Teleport to="body">
   <div v-if="menuOpen" class="card-menu" role="menu">…</div>
 </Teleport>

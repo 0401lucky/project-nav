@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端规范索引、性能预算、模糊容器限制"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "令牌、模糊容器、层叠铁律、移动端约定"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "纯逻辑拆分与零运行时 import 约束（labels.ts）"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "data store 新增派生计算属性 duplicateTitleKeys"}
+{"file": ".trellis/spec/backend/icon-pipeline.md", "reason": "encodeIcon 契约与必需测试（反白规则）"}
+{"file": ".trellis/tasks/09-25-home-visual-refresh/mockups/b.html", "reason": "选定样稿：布局数值"}
+{"file": ".trellis/tasks/09-25-home-visual-refresh/mockups/shared/base.css", "reason": "样稿共享样式：卡片、分组头、按钮、色块配色"}

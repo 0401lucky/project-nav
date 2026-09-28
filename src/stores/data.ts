@@ -9,6 +9,7 @@ import { computed, ref } from 'vue'
 import { ApiError, UnauthorizedError, api, describeError } from '@/api/client'
 import type { BookmarkInput, BookmarkPatch, GroupInput } from '@/api/client'
 import { applyOrderWithin, moveToGroupEnd, placeUpdated } from '@/composables/drag'
+import { findDuplicateTitleKeys } from '@/composables/labels'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import type { Bookmark, BootstrapResponse, Group } from '@/types'
@@ -64,6 +65,12 @@ export const useDataStore = defineStore('data', () => {
 
   const isEmpty = computed(() => groups.value.length === 0)
   const total = computed(() => bookmarks.value.length)
+
+  /**
+   * 和别的书签同名的标题键，卡片据此在标题下显示主机名。
+   * 按全部书签算、整个列表只算一次：搜索过滤时主机名行不会忽隐忽现，也不用每张卡片各扫一遍。
+   */
+  const duplicateTitleKeys = computed(() => findDuplicateTitleKeys(bookmarks.value))
 
   function applyBootstrap(payload: BootstrapResponse): void {
     groups.value = payload.groups
@@ -372,6 +379,7 @@ export const useDataStore = defineStore('data', () => {
     byGroup,
     isEmpty,
     total,
+    duplicateTitleKeys,
     applyBootstrap,
     reset,
     createGroup,

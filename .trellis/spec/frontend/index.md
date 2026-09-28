@@ -26,10 +26,12 @@ prd 把「依赖最少」列为非功能需求——新增任何运行时依赖�
 
 ## 性能预算（超出即视为回归）
 
-- 首屏 JS gzip < 80KB（当前约 47.7KB；`vite.config.ts` 的 `manualChunks` 把 vendor 拆开以利长期缓存）
+- 首屏 JS gzip < 80KB（首页视觉调整后约 52.13KB；`vite.config.ts` 的 `manualChunks` 把 vendor 拆开以利长期缓存）
 - 壁纸单张 ≤ 300KB，两档尺寸 + LQIP 占位
-- `backdrop-filter` 只允许出现在三类容器上：分组面板、弹出面板、卡片悬停。
+- `backdrop-filter` 只允许出现在三类容器上：启动器面板、弹出面板、卡片悬停。
   这不是审美偏好——每个 `backdrop-filter` 都会新建层叠上下文和合成层，直接影响滚动帧率
+- 首页常驻内容仅 `.launcher` 一层模糊，分组没有独立模糊；列表在面板内滚动。
+  `position: fixed` 弹层必须放在 `.launcher` 外，避免被限制在面板内或裁切。
 - 不引动画库。动效一律走 `--dur` / `--ease` 两个令牌
 
 ## 规范索引

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>样稿 C · 全宽瀑布</title>
+    <link rel="stylesheet" href="shared/base.css" />
+    <style>
+      /*
+        C 全宽瀑布：保留铺满全屏，分组改成四列瀑布流，小分组不再独占一整行。
+        面板用半透明深色底代替毛玻璃，全页零模糊层；搜索框并进顶栏，省出一行给书签。
+      */
+      :root {
+        --wp-scrim: linear-gradient(180deg, rgb(6 8 12 / 0.5), rgb(6 8 12 / 0.25) 35%, rgb(6 8 12 / 0.45));
+      }
+
+      .app {
+        padding: 0 var(--page-x);
+      }
+
+      /* 顶栏三段：品牌 | 搜索 | 操作 */
+      .top {
+        display: grid;
+        grid-template-columns: 1fr minmax(0, 560px) 1fr;
+        grid-template-areas: 'brand search actions';
+        gap: 20px;
+        height: 76px;
+      }
+
+      .top__brand {
+        grid-area: brand;
+        margin-right: 0;
+      }
+
+      .top__search {
+        grid-area: search;
+      }
+
+      .top__actions {
+        grid-area: actions;
+        justify-self: end;
+      }
+
+      .main {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        margin: 0 calc(var(--page-x) * -1);
+        padding: 0 var(--page-x) 32px;
+      }
+
+      .panels {
+        columns: 4 280px;
+        column-gap: 14px;
+      }
+
+      .panels__cell {
+        break-inside: avoid;
+        padding-bottom: 14px;
+      }
+
+      .panel {
+        padding: 12px;
+        background: rgb(13 16 22 / 0.68);
+        border: 1px solid rgb(255 255 255 / 0.08);
+        border-radius: 18px;
+      }
+
+      .panel__head {
+        height: 24px;
+        margin-bottom: 10px;
+        padding-left: 2px;
+      }
+
+      .panel__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 6px;
+      }
+
+      .card {
+        padding: 8px 9px;
+        background: rgb(255 255 255 / 0.05);
+      }
+
+      .card:hover {
+        background: rgb(255 255 255 / 0.1);
+      }
+
+      @media (max-width: 640px) {
+        /* 窄屏：品牌和操作一行，搜索框单独一行 */
+        .top {
+          grid-template-columns: 1fr auto;
+          grid-template-areas:
+            'brand actions'
+            'search search';
+          row-gap: 0;
+          height: auto;
+          padding-bottom: 14px;
+        }
+
+        .top__brand {
+          height: 54px;
+          align-items: center;
+        }
+
+        .panels {
+          columns: 1;
+        }
+
+        .panel {
+          padding: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wp"></div>
+    <div class="app"></div>
+
+    <script src="shared/data.js"></script>
+    <script src="shared/render.js"></script>
+    <script>
+      const { DATA, h, panel, addGroupButton, topbar, search, mountWallpaper, mountToolbar } = window.Mock
+
+      mountWallpaper(document.querySelector('.wp'))
+
+      // 不能叫 top：会和全局的 window.top 冲突，整段脚本直接报错
+      const header = topbar()
+      header.append(h('div', { class: 'top__search' }, [search()]))
+
+      const panels = h('div', { class: 'panels' }, [
+        ...DATA.map((group) => panel(group)),
+        h('div', { class: 'panels__cell' }, [addGroupButton()]),
+      ])
+
+      document.querySelector('.app').append(header, h('main', { class: 'main' }, [panels]))
+
+      mountToolbar(
+        'c.html',
+        'C 全宽瀑布：保持铺满，分组改四列瀑布流，小分组不再独占一行；半透明深色面板代替毛玻璃，零模糊层；搜索框并进顶栏。',
+      )
+    </script>
+  </body>
+</html>

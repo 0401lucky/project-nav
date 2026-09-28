@@ -15,7 +15,13 @@ const data = useDataStore()
     </div>
 
     <div class="topbar__actions">
-      <button class="topbar__add" type="button" @click="emit('add')">新增</button>
+      <!-- 全页唯一的实心强调色按钮：新增书签是最常用的操作 -->
+      <button class="topbar__add" type="button" @click="emit('add')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+        </svg>
+        新增
+      </button>
       <IconButton label="设置" @click="emit('settings')">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path
@@ -42,7 +48,7 @@ const data = useDataStore()
   align-items: center;
   justify-content: space-between;
   height: var(--topbar-h);
-  padding: 0 var(--page-x);
+  padding: 0 16px 0 20px;
   flex: 0 0 auto;
 }
 
@@ -71,17 +77,21 @@ const data = useDataStore()
 }
 
 .topbar__add {
-  padding: 7px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px 0 11px;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-  background: var(--glass-card);
-  border: 1px solid var(--stroke);
+  font-weight: 600;
+  /* 强调色是浅色，文字用深色才读得清 */
+  color: #10131a;
+  background: var(--accent);
   border-radius: var(--r-pill);
-  transition: background var(--dur) var(--ease);
+  transition: filter var(--dur) var(--ease);
 }
 
 .topbar__add:hover {
-  background: var(--glass-card-hover);
+  filter: brightness(1.08);
 }
 </style>

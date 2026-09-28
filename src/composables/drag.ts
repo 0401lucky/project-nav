@@ -43,7 +43,7 @@ export function insertAt<T extends Reorderable>(list: readonly T[], item: T, ind
 
 /**
  * 计算拖动元素应落在哪个下标：指针在目标元素前半段就插到它前面。
- * 与轴无关——横排的卡片传 left/width/clientX，竖排的分组传 top/height/clientY。
+ * 与轴无关——横排传 left/width/clientX，竖排（书签列表、分组）传 top/height/clientY。
  */
 export function dropIndexFor(start: number, size: number, pointer: number, index: number): number {
   return pointer < start + size / 2 ? index : index + 1

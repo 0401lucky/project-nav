@@ -19,6 +19,7 @@
 type IconResult = { ok: true } | { ok: false; reason: string }
 
 sniffImage(buf: Buffer): 'png' | 'jpeg' | 'gif' | 'webp' | 'avif' | 'ico' | 'svg' | null
+isDarkGlyph(rgba: Buffer): boolean                                         // 解码后的 RGBA 字节
 encodeIcon(raw: Buffer): Promise<{ ok: true; value: Buffer } | { ok: false; reason: string }>
 cacheIcon(db, paths, bookmarkId, sourceUrl): Promise<IconResult>            // 下载一张指定的图
 cacheIconFromPage(db, paths, bookmarkId, pageUrl, preferred?): Promise<IconResult>
@@ -54,6 +55,12 @@ HTTP 接口（`/api/bookmarks` 下）：
 - 落盘顺序：编码成功 → 确认书签还在 → 写文件 → `setBookmarkHasIcon(true)`（同时刷新 `updated_at`，
   前端图标 URL 以 `updated_at` 为缓存键）。
 - 第三方图标服务**只能**出现在 `POST /:id/icon/public` 这条路径里；自动抓取、批量补抓都不访问。
+- 下载、上传、公共服务都通过 `storeIcon → encodeIcon`。缩放为 64×64 RGBA 后，
+  深色透明图标统一 `negate({ alpha: false })` 再编码 WebP，透明度保留；不在前端逐张加 CSS 反色。
+- `isDarkGlyph` 同时要求：alpha > 0.5 的像素占比 < 0.7、按 alpha 加权的平均线性亮度 < 0.05、
+  平均饱和度 < 0.15。alpha ≤ 0.05 的像素不计平均；空数据或全透明返回 false。
+  亮度用线性 sRGB，不能拿 0–255 的通道均值直接和该阈值比较。
+- 规则只作用于新写入的图标，不自动迁移旧缓存；需要时在编辑面板点「重新抓取」。
 
 ## 4. 校验与错误矩阵
 
@@ -75,6 +82,8 @@ HTTP 接口（`/api/bookmarks` 下）：
 
 - 正常：页面声明 PNG 图标 → 64px WebP 落盘 → `has_icon=1`。
 - 边界：只有 `/favicon.ico`，里面是 32 位 BMP 条目 → 走 `decodeIco` 的 raw 分支，照样成功。
+- 深色透明线条：DEEIX Chat / Google AI Studio → 白色图形、透明底保留。
+- 非目标：带白边或彩色主体的暗图标、整块不透明黑方块 → 不反色。
 - 失败：linux.do 这类 Cloudflare 质询站 → 自动抓取失败并给出原因，用户可点「从公共服务获取」。
 
 ## 6. 必需的测试
@@ -83,6 +92,8 @@ HTTP 接口（`/api/bookmarks` 下）：
 - `meta.test.ts`：`href` 在 `rel` 前、无引号、单引号、含单引号的 data URI、`sizes` 排序、`alternate icon`、icon 排在 og:image 前。
 - `icons.test.ts`：先落盘再置标记并刷新 `updated_at`、文件头识别（Content-Type 撒谎）、含 `<text>` 的 SVG 被拒、
   首选候选失败退回页面候选、页面打不开 / Cloudflare 质询的原因、补抓只处理缺图标的书签。
+  反白另覆盖透明黑图形（断言白色且 alpha 保留）、彩色主体、暗图白边、全不透明黑图。
+  调整阈值时对任务快照引用的 31 个原图复核，只命中 DEEIX Chat 与 Google AI Studio；不要混入 `-invert.webp` 派生样稿。
 - `bookmark-icons.test.ts`：`GET /:id`、重抓成功与失败（失败时 `hasIcon` 不变并带回原因）、上传、批量补抓统计。
   公共服务接口目前没有路由测试，改它时补上。
 

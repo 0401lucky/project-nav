@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端规范索引与性能预算（首屏 JS gzip < 80KB）"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "验证命令、禁用模式、elementFromPoint 可点击验证"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "核对令牌、模糊容器、层叠与无障碍"}
+{"file": ".trellis/spec/backend/icon-pipeline.md", "reason": "核对 encodeIcon 契约与测试"}

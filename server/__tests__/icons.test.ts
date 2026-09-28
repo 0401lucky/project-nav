@@ -12,10 +12,12 @@ import {
   cacheIconFromBuffer,
   cacheIconFromPage,
   deleteIcons,
+  encodeIcon,
   faviconSource,
   ICON_SIZE,
   iconFilePath,
   iconPath,
+  isDarkGlyph,
   refetchMissingIcons,
 } from '../lib/icons.ts'
 import type { DataPaths } from '../lib/paths.ts'
@@ -351,6 +353,84 @@ describe('cacheIconFromPage', () => {
     )
 
     assert.equal(hasIcon(db, bookmarkId), true)
+  })
+})
+
+type Rgba = readonly [number, number, number, number]
+
+/** 生成 64×64 的 RGBA 数据，每个像素的颜色由 paint(x, y) 决定 */
+function paintRgba(paint: (x: number, y: number) => Rgba): Buffer {
+  const buf = Buffer.alloc(ICON_SIZE * ICON_SIZE * 4)
+  for (let y = 0; y < ICON_SIZE; y++) {
+    for (let x = 0; x < ICON_SIZE; x++) {
+      buf.set(paint(x, y), (y * ICON_SIZE + x) * 4)
+    }
+  }
+  return buf
+}
+
+async function toPng(rgba: Buffer): Promise<Buffer> {
+  return sharp(rgba, { raw: { width: ICON_SIZE, height: ICON_SIZE, channels: 4 } }).png().toBuffer()
+}
+
+/** encodeIcon 的输出解回 RGBA，取某个像素 */
+async function encodedPixel(rgba: Buffer, x: number, y: number): Promise<Rgba> {
+  const encoded = await encodeIcon(await toPng(rgba))
+  assert.ok(encoded.ok)
+  const { data } = await sharp(encoded.value).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const i = (y * ICON_SIZE + x) * 4
+  return [data[i]!, data[i + 1]!, data[i + 2]!, data[i + 3]!]
+}
+
+const CLEAR: Rgba = [0, 0, 0, 0]
+const inCenter = (x: number, y: number, half: number): boolean =>
+  Math.abs(x - 31.5) < half && Math.abs(y - 31.5) < half
+
+describe('深色透明图标反白', () => {
+  const blackGlyph = paintRgba((x, y) => (inCenter(x, y, 12) ? [0, 0, 0, 255] : CLEAR))
+
+  it('isDarkGlyph：透明底加黑色图形命中', () => {
+    assert.equal(isDarkGlyph(blackGlyph), true)
+  })
+
+  it('isDarkGlyph：全透明或空数据不命中', () => {
+    assert.equal(isDarkGlyph(paintRgba(() => CLEAR)), false)
+    assert.equal(isDarkGlyph(Buffer.alloc(0)), false)
+  })
+
+  it('透明底加黑色图形：图形反成白色，透明部分 alpha 仍为 0', async () => {
+    const [r, g, b, a] = await encodedPixel(blackGlyph, 32, 32)
+    assert.ok(r > 230 && g > 230 && b > 230, `图形应变白，实际 ${r},${g},${b}`)
+    assert.equal(a, 255)
+    assert.equal((await encodedPixel(blackGlyph, 0, 0))[3], 0)
+  })
+
+  it('彩色图标不变', async () => {
+    const red = paintRgba((x, y) => (inCenter(x, y, 12) ? [220, 30, 30, 255] : CLEAR))
+    assert.equal(isDarkGlyph(red), false)
+    const [r, g, b] = await encodedPixel(red, 32, 32)
+    assert.ok(r > 180 && g < 80 && b < 80, `应保持红色，实际 ${r},${g},${b}`)
+  })
+
+  it('深色主体带大片白色的图标不变', async () => {
+    const mixed = paintRgba((x, y) => {
+      if (inCenter(x, y, 10)) return [255, 255, 255, 255]
+      if (inCenter(x, y, 18)) return [10, 10, 10, 255]
+      return CLEAR
+    })
+    assert.equal(isDarkGlyph(mixed), false)
+    const [r] = await encodedPixel(mixed, 32, 32)
+    assert.ok(r > 230, `白色主体应保持白色，实际 ${r}`)
+    const [edge] = await encodedPixel(mixed, 32, 17)
+    assert.ok(edge < 40, `深色外圈应保持深色，实际 ${edge}`)
+  })
+
+  it('整块不透明的黑色方图不变', async () => {
+    const solid = paintRgba(() => [0, 0, 0, 255])
+    assert.equal(isDarkGlyph(solid), false)
+    const [r, g, b, a] = await encodedPixel(solid, 32, 32)
+    assert.ok(r < 20 && g < 20 && b < 20, `应保持黑色，实际 ${r},${g},${b}`)
+    assert.equal(a, 255)
   })
 })
 

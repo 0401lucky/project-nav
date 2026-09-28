@@ -80,8 +80,8 @@ export function useDrag() {
     event.stopPropagation()
     const rect = (event.currentTarget as HTMLElement | null)?.getBoundingClientRect()
     if (rect === undefined) return
-    // 卡片是横排网格，按左右半边判断前后
-    target.value = { groupId, index: dropIndexFor(rect.left, rect.width, event.clientX, index) }
+    // 桌面端书签是竖排列表（窄屏的 3 列网格不给拖），按上下半边判断前后
+    target.value = { groupId, index: dropIndexFor(rect.top, rect.height, event.clientY, index) }
   }
 
   /** 指针落在分组面板空白处：放到该分组末尾 */

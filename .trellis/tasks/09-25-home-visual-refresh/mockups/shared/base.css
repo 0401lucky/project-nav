@@ -1,0 +1,511 @@
+/* 三版样稿共用：令牌、壁纸层、顶栏、搜索框、卡片基础、样稿工具条。
+   各版只在自己的 <style> 里写布局差异。字体沿用线上的系统字体栈，不引入网页字体。 */
+
+:root {
+  --accent: #e8c87a;
+  --text: rgb(255 255 255 / 0.92);
+  --text-2: rgb(255 255 255 / 0.62);
+  --text-3: rgb(255 255 255 / 0.4);
+  --stroke: rgb(255 255 255 / 0.1);
+  --stroke-strong: rgb(255 255 255 / 0.2);
+  --dur: 160ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --page-x: 32px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--text);
+  background: #0b0d12;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul {
+  list-style: none;
+}
+
+img {
+  display: block;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.16);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------------- 壁纸层：与线上相同，fixed 铺满 + cover ---------------- */
+
+.wp {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: #0b0d12;
+}
+
+.wp img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 遮罩由各版自己定义 --wp-scrim */
+.wp__scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--wp-scrim);
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ---------------- 顶栏：新增是主按钮，设置是图标按钮 ---------------- */
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 60px;
+  flex: 0 0 auto;
+}
+
+.top__brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.top__title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+
+.top__count {
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.top__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px 0 11px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #15171c;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: filter var(--dur) var(--ease);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--text-2);
+  border-radius: 999px;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.btn-icon:hover {
+  background: rgb(255 255 255 / 0.1);
+  color: var(--text);
+}
+
+/* ---------------- 搜索框 ---------------- */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 14px;
+  background: rgb(0 0 0 / 0.28);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.search:focus-within {
+  border-color: var(--accent);
+}
+
+.search svg {
+  flex: 0 0 auto;
+  color: var(--text-3);
+}
+
+.search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.search input::placeholder {
+  color: var(--text-3);
+}
+
+.search kbd {
+  padding: 2px 6px;
+  font: 11px/1.4 ui-monospace, Consolas, monospace;
+  color: var(--text-3);
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+}
+
+/* ---------------- 分组头：添加 / 编辑悬停才出现 ---------------- */
+
+.panel {
+  break-inside: avoid;
+}
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.panel__icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.panel__name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel__count {
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel__rule {
+  display: none;
+}
+
+.panel__tools {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.panel:hover .panel__tools {
+  opacity: 1;
+}
+
+.panel__tool {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--text-3);
+  border-radius: 7px;
+}
+
+.panel__tool:hover {
+  background: rgb(255 255 255 / 0.12);
+  color: var(--text);
+}
+
+/* ---------------- 卡片基础：三版统一沿用线上的卡片内部结构 ---------------- */
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border-radius: 12px;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.card__icon {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+/* 首字色块：默认沿用线上配色（域名哈希色相 --h、饱和度 55%），取字规则已修正 */
+.fallback {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  color: rgb(255 255 255 / 0.95);
+  background: hsl(var(--h) 55% 45%);
+  user-select: none;
+}
+
+/* 配色的两个备选，由 body 上的类切换，只给样稿对比用 */
+.fb-muted .fallback {
+  color: hsl(var(--h) 55% 84%);
+  background: hsl(var(--h) 26% 28%);
+}
+
+.fb-neutral .fallback {
+  color: rgb(255 255 255 / 0.82);
+  background: rgb(255 255 255 / 0.13);
+}
+
+.card__title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+/* 标题和主机名上下叠放；主机名只在标题重复时才有 */
+.card__text {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.card__host {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 悬停才出现，盖在标题末尾上方，不给它常驻让出宽度 */
+.card__more {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--text-2);
+  background: rgb(34 37 46 / 0.92);
+  border-radius: 7px;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.card:hover .card__more {
+  opacity: 1;
+}
+
+/* 新建分组：从右下角的黄色悬浮按钮挪到分组列表末尾，降为次要入口 */
+.add-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 40px;
+  font-size: 12px;
+  color: var(--text-3);
+  border: 1px dashed var(--stroke-strong);
+  border-radius: 12px;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.add-group:hover {
+  color: var(--text);
+  border-color: var(--text-3);
+}
+
+/* ---------------- 样稿工具条（不属于设计本身） ---------------- */
+
+.mock-bar {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  /* 说明文字会按 100% 基准撑宽，限住宽度让它折行，少挡内容 */
+  max-width: min(520px, calc(100vw - 28px));
+  padding: 6px 8px 6px 12px;
+  font: 12px/1 system-ui, sans-serif;
+  color: rgb(255 255 255 / 0.75);
+  background: rgb(0 0 0 / 0.72);
+  border: 1px dashed rgb(255 255 255 / 0.3);
+  border-radius: 10px;
+}
+
+.mock-bar__group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.mock-bar__label {
+  margin-right: 4px;
+  color: rgb(255 255 255 / 0.45);
+}
+
+.mock-bar a,
+.mock-bar button {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  color: rgb(255 255 255 / 0.75);
+}
+
+.mock-bar a:hover,
+.mock-bar button:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.mock-bar .is-on,
+.mock-bar .is-on:hover {
+  color: #15171c;
+  background: var(--accent);
+}
+
+.mock-bar__size,
+.mock-bar__note {
+  color: rgb(255 255 255 / 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.mock-bar__note {
+  flex-basis: 100%;
+  line-height: 1.5;
+}
+
+/* ---------------- 窄屏：三版一致，单列分组、卡片固定 3 列竖排 ---------------- */
+
+@media (max-width: 640px) {
+  :root {
+    --page-x: 14px;
+  }
+
+  .top {
+    height: 54px;
+  }
+
+  /* 触屏没有悬停，工具按钮常显。body 前缀用来压过各版自己的桌面规则 */
+  body .panel__tools,
+  body .card__more {
+    opacity: 1;
+  }
+
+  body .panel__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* 竖排：3 列时卡片只有约 100px 宽，横排会把标题挤没 */
+  body .card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  body .card__more {
+    top: 4px;
+    transform: none;
+  }
+
+  /* 竖排时卡片按 flex-start 对齐，文字块要撑满宽度，主机名才会截断而不是撑出卡片 */
+  body .card__text {
+    width: 100%;
+  }
+
+  .mock-bar__size,
+  .mock-bar__note {
+    display: none;
+  }
+}

@@ -15,6 +15,7 @@ import { computed, onBeforeUnmount, watch } from 'vue'
 import FallbackIcon from '@/components/ui/FallbackIcon.vue'
 import { splitByHighlights } from '@/composables/filter'
 import type { HighlightRange } from '@/composables/filter'
+import { displayHost, titleKey } from '@/composables/labels'
 import { useDataStore } from '@/stores/data'
 import type { Bookmark } from '@/types'
 
@@ -75,6 +76,11 @@ const iconSrc = computed(() => `/icons/${props.bookmark.id}.webp?v=${props.bookm
 
 const titleParts = computed(() => splitByHighlights(props.bookmark.title, props.highlight ?? []))
 
+/** 和别的书签同名时，标题下多一行主机名来区分；不重名就不显示 */
+const host = computed(() =>
+  data.duplicateTitleKeys.has(titleKey(props.bookmark.title)) ? displayHost(props.bookmark.url) : null,
+)
+
 const menuOpen = computed(() => openMenuId.value === props.bookmark.id)
 const moreButton = ref<HTMLElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
@@ -103,9 +109,9 @@ const menuStyle = computed(() => ({
 
 /**
  * 菜单必须 Teleport 到 body。
- * 分组面板用了 backdrop-filter，因而各自是一个独立的层叠上下文——
- * 菜单留在卡片里时，z-index 只在所属面板内部比较，
- * DOM 里更靠后的面板会整块盖在它上面，调多大都没用。
+ * 启动器面板用了 backdrop-filter，因而是一个独立的层叠上下文，
+ * 还会成为 fixed 定位后代的包含块——菜单留在卡片里时，
+ * z-index 只在面板内部比较，位置也会被面板的 overflow: hidden 裁掉。
  */
 function openMenu(event?: MouseEvent): void {
   event?.preventDefault()
@@ -208,13 +214,17 @@ onBeforeUnmount(() => {
         draggable="false"
         @error="iconFailed = true"
       />
-      <FallbackIcon v-else :title="bookmark.title" :url="bookmark.url" :size="32" />
+      <!-- 不传 size：尺寸由下面的 .card__icon 决定，桌面端和窄屏不一样 -->
+      <FallbackIcon v-else class="card__icon" :title="bookmark.title" :url="bookmark.url" />
 
-      <span class="card__title">
-        <template v-for="(part, index) in titleParts" :key="index"
-          ><mark v-if="part.hit" class="card__hit">{{ part.text }}</mark
-          ><template v-else>{{ part.text }}</template
-        ></template>
+      <span class="card__text">
+        <span class="card__title">
+          <template v-for="(part, index) in titleParts" :key="index"
+            ><mark v-if="part.hit" class="card__hit">{{ part.text }}</mark
+            ><template v-else>{{ part.text }}</template
+          ></template>
+        </span>
+        <span v-if="host !== null" class="card__host">{{ host }}</span>
       </span>
 
       <button
@@ -280,24 +290,22 @@ onBeforeUnmount(() => {
 }
 
 .card {
-  /* 悬停才出现的两个控件改为绝对定位，别占标题的宽度 */
+  /* 悬停才出现的菜单按钮绝对定位，别占标题的宽度 */
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
-  padding: 9px 11px;
-  background: var(--glass-card);
+  /* 加上 1px 边框（选中项描边用）后，外框尺寸与样稿的 5px 6px 一致 */
+  padding: 4px 5px;
   border: 1px solid transparent;
   border-radius: var(--r-card);
-  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease),
-    transform var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
+/* 紧凑列表：平时没有底色，悬停才有 */
 .card:hover {
   background: var(--glass-card-hover);
-  border-color: var(--stroke);
-  transform: translateY(-1px);
 }
 
 .card.is-dragging {
@@ -310,26 +318,42 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 1px var(--accent);
 }
 
-.card__icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  object-fit: cover;
+/* 图片和首字色块共用；多一层 .card 压过 FallbackIcon 自身的圆角 */
+.card .card__icon {
   flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: cover;
+  font-size: 11px;
 }
 
-/* 两行截断：长标题不至于把卡片撑高，也不至于只剩一个词 */
+/* 标题和主机名上下叠放；主机名只在标题重复时才有 */
+.card__text {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 单行截断：列表里一行一条 */
 .card__title {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  flex: 1 1 auto;
-  /* 右侧常驻的菜单按钮位置，避免悬停时盖住标题末尾 */
-  padding-right: 22px;
+  min-width: 0;
   font-size: 13px;
   line-height: 1.35;
   word-break: break-word;
+}
+
+.card__host {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* 命中片段标黄：用强调色加下划线，不改变文字颜色以免在暗底上失真 */
@@ -340,19 +364,21 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+/* 悬停才出现，带不透明底盖在标题末尾上方，不给它常驻让出宽度 */
 .card__more {
   position: absolute;
-  right: 4px;
+  right: 3px;
   top: 50%;
   transform: translateY(-50%);
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  color: var(--text-3);
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  color: var(--text-2);
+  background: rgb(34 37 46 / 0.92);
   opacity: 0;
-  transition: opacity var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: opacity var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 
 .card:hover .card__more,
@@ -361,12 +387,11 @@ onBeforeUnmount(() => {
 }
 
 .card__more:hover {
-  background: rgb(255 255 255 / 0.14);
   color: var(--text);
 }
 
 .card-menu {
-  /* 已 Teleport 到 body，用 fixed 定位并按按钮坐标摆放，跳出分组面板的层叠上下文 */
+  /* 已 Teleport 到 body，用 fixed 定位并按按钮坐标摆放，跳出启动器面板的层叠上下文 */
   position: fixed;
   z-index: 60;
   display: grid;
@@ -447,17 +472,27 @@ onBeforeUnmount(() => {
     padding: 8px;
   }
 
+  .card .card__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+
+  /* 竖排时卡片按 flex-start 对齐，文字块要撑满宽度，主机名才会截断而不是撑出卡片 */
+  .card__text {
+    width: 100%;
+  }
+
+  .card__title {
+    -webkit-line-clamp: 2;
+  }
+
   /* 靠 hover 显形的按钮在触屏上永远点不到，必须常显 */
   .card__more {
     top: 4px;
     transform: none;
     opacity: 1;
-    background: rgb(0 0 0 / 0.35);
-  }
-
-  /* 竖排时按钮在右上角，标题不需要再让出右侧空间 */
-  .card__title {
-    padding-right: 0;
   }
 }
 </style>

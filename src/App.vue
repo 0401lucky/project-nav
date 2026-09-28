@@ -80,6 +80,9 @@ const actions: CardActions = {
     activeGroup.value = group
     panel.value = 'edit-group'
   },
+  addGroup: () => {
+    panel.value = 'add-group'
+  },
 }
 
 async function moveBookmark(bookmark: Bookmark, groupId: string): Promise<void> {
@@ -234,7 +237,13 @@ const rootStyle = computed(() => ({ '--accent': settings.accent }))
 
       <LoginScreen v-else-if="!auth.loggedIn" />
 
-      <template v-else>
+      <div v-else class="launcher">
+        <!--
+          启动器：顶栏、搜索框、分组列表都装进左侧这一块毛玻璃，右侧留给壁纸人物。
+          全页常驻元素只有它一层 backdrop-filter。
+          SlidePanel、Toast 必须留在它外面：带 backdrop-filter 的祖先会成为 fixed 后代的包含块，
+          放进来就会被限制在面板范围内，还会被 overflow: hidden 裁掉。
+        -->
         <TopBar @add="addBookmarkTo()" @settings="panel = 'settings'" />
 
         <!-- 搜索框放在不滚动的区域，滚动网格时它一直在 -->
@@ -246,14 +255,7 @@ const rootStyle = computed(() => ({ '--accent': settings.accent }))
           <!-- 数据没到之前不渲染网格，避免空状态一闪而过 -->
           <BookmarkGrid v-if="data.loaded" />
         </main>
-
-        <button class="app__fab" type="button" aria-label="新建分组" @click="panel = 'add-group'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
-          分组
-        </button>
-      </template>
+      </div>
     </template>
 
     <SlidePanel :open="panel !== null" :title="panelTitle" @close="closePanel">
@@ -292,16 +294,34 @@ const rootStyle = computed(() => ({ '--accent': settings.accent }))
   height: 100%;
 }
 
+/* 允许用 backdrop-filter 的容器之一；面板本身不动，书签列表在 .app__main 里滚动 */
+.launcher {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* 样稿只写了 clamp，641～663px 宽时最小值 620px 加外边距会溢出，用 min() 兜底 */
+  width: min(var(--launcher-w), calc(100% - 44px));
+  margin: 22px;
+  overflow: hidden;
+  background: var(--glass-launcher);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-launcher);
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.35);
+  backdrop-filter: blur(var(--blur-launcher)) saturate(1.25);
+}
+
 .app__search {
   flex: 0 0 auto;
-  padding: 0 var(--page-x);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--stroke);
 }
 
 .app__main {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 var(--page-x) var(--page-x);
+  padding: 14px 16px 20px;
 }
 
 .app__error {
@@ -312,25 +332,14 @@ const rootStyle = computed(() => ({ '--accent': settings.accent }))
   color: var(--text-2);
 }
 
-.app__fab {
-  position: fixed;
-  right: var(--page-x);
-  bottom: 24px;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #10131a;
-  background: var(--accent);
-  border-radius: var(--r-pill);
-  box-shadow: 0 12px 30px rgb(0 0 0 / 0.45);
-  transition: filter var(--dur) var(--ease);
-}
-
-.app__fab:hover {
-  filter: brightness(1.08);
+/* 窄屏铺满全屏，模糊由令牌降一档 */
+@media (max-width: 640px) {
+  .launcher {
+    width: 100%;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
 }
 </style>

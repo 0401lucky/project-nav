@@ -12,31 +12,36 @@
   --glass-card: rgb(255 255 255 / 0.06);
   --glass-card-hover: rgb(255 255 255 / 0.12);
   --glass-sheet: rgb(255 255 255 / 0.12);
+  /* 启动器面板比别的玻璃更不透明：它下面直接是壁纸，文字可读全靠它 */
+  --glass-launcher: rgb(17 19 26 / 0.5);
 
   --stroke: rgb(255 255 255 / 0.15);
   --stroke-strong: rgb(255 255 255 / 0.28);
 
-  /* 模糊只允许出现在分组面板、弹出面板、卡片悬停三类容器上 */
+  /* 模糊只允许出现在启动器面板、弹出面板、卡片悬停三类容器上 */
   --blur-panel: 20px;
   --blur-sheet: 40px;
+  --blur-launcher: 24px;
 
+  --r-launcher: 22px;
   --r-panel: 20px;
-  --r-card: 14px;
+  --r-card: 8px;
   --r-pill: 999px;
 
   --dur: 180ms;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
-  --gap: 10px;
   --page-x: 24px;
   --topbar-h: 60px;
+  /* 左侧启动器面板的宽度，右侧留给壁纸人物 */
+  --launcher-w: clamp(620px, 62vw, 980px);
 
-  /* 壁纸之上、内容之下的遮罩，保证任何壁纸下文字都可读 */
+  /* 壁纸之上、内容之下的遮罩。内容都在启动器面板里、由面板保证可读，这里只压一点明暗 */
   --scrim: linear-gradient(
     180deg,
-    rgb(0 0 0 / 0.35),
-    rgb(0 0 0 / 0.15) 40%,
-    rgb(0 0 0 / 0.55)
+    rgb(0 0 0 / 0.28),
+    rgb(0 0 0 / 0.04) 35%,
+    rgb(0 0 0 / 0.3)
   );
 }
 
@@ -50,10 +55,9 @@
 @media (max-width: 640px) {
   :root {
     --page-x: 14px;
-    --gap: 8px;
     --topbar-h: 54px;
     --r-panel: 16px;
-    --r-card: 12px;
     --blur-panel: 14px;
+    --blur-launcher: 14px;
   }
 }
