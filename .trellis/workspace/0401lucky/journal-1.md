@@ -87,3 +87,27 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 4: 壁纸扩充与分组折叠发布
+<!-- trellis-session: v=2 fp=32fbc478a52e9ee1 -->
+
+**Date**: 2026-09-28
+**Task**: 壁纸扩充与分组折叠发布
+**Branch**: `main`
+
+### Summary
+
+恢复中断任务并完成最终复核：266 单测、36 隔离 E2E、typecheck/build 通过。新增四组乙游风横竖壁纸与浏览器记忆分组折叠已推送 main，应用 82fcebd 部署至 yoyo-9 /root/apps/nav。healthy、重启 0，9 分组/51 书签/36 图标及设置不变，壁纸 8→16，SQLite 完整性正常；备份 20260928T134810Z-82fcebd。交互式浏览器复核受企业网络策略限制，未绕过；验证限制及回滚记录已同步任务验收和服务器档案。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aa7c5ec` | feat(wallpapers): 新增四组精致乙游风横竖屏壁纸 |
+| `82fcebd` | feat(home): 支持分组折叠与浏览器记忆 |
+| `d6c00b4` | docs(deploy): 记录壁纸与分组折叠上线验收 |
+
+### Status
+
+[OK] **Completed**
