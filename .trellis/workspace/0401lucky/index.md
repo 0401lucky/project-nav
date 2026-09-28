@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 1
-- **Last Active**: 2026-09-24
+- **Total Sessions**: 2
+- **Last Active**: 2026-09-28
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~35 | Active |
+| `journal-1.md` | ~65 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 2 | 2026-09-28 | 接续首页视觉调整并发布到 yunyou-9 | `cd98205` | `main` |
 | 1 | 2026-09-24 | 阶段 11 收尾：回填前端规范并合并到 main | `6099b57` | `main` |
 <!-- @@@/auto:session-history -->
 

@@ -33,3 +33,33 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 2: 接续首页视觉调整并发布到 yunyou-9
+<!-- trellis-session: v=2 fp=2c479471e88b75ac -->
+
+**Date**: 2026-09-28
+**Task**: 接续首页视觉调整并发布到 yunyou-9
+**Branch**: `main`
+
+### Summary
+
+接续 Claude 中断任务，修复 E2E 数据隔离；263 单测、27 E2E、构建和桌面/手机验收通过。已推送 GitHub main，将 cd98205 部署到 yunyou-9 64.83.25.9 的 /root/apps/nav，公网 nav.lucky0625.qzz.io 健康，9 组52书签31图标及设置数据指纹一致。备份与回滚记录已同步服务器档案和总索引。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cd98205` | feat(home): 完成首页视觉调整并修复端到端测试隔离 |
+
+### Testing
+
+- [OK] 263/263 单测；27/27 E2E；非默认数据重复8/8；零分组1/1；构建和公网验收通过
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- DEEIX Chat 和 Google AI Studio 旧缓存可各点一次重新抓取以应用反白。父任务记录保留，未纳入本次归档。
